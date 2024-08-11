@@ -180,11 +180,14 @@ class Uploader:
 
       stat = None
       last_exc = None
+      print("Uploading....", name)
+      print("Uploading File....", key)
       try:
         stat = self.do_upload(key, fn)
       except Exception as e:
         last_exc = (e, traceback.format_exc())
 
+      print('Upload result : ',stat)
       if stat is not None and stat.status_code in (200, 201, 401, 403, 412):
         self.last_filename = fn
         dt = time.monotonic() - start_time
@@ -195,6 +198,7 @@ class Uploader:
           speed = (content_length / 1e6) / dt
           cloudlog.event("upload_success", key=key, fn=fn, sz=sz, content_length=content_length,
                          network_type=network_type, metered=metered, speed=speed)
+          print('Upload success :',key)
         success = True
       else:
         success = False

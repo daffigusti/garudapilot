@@ -17,10 +17,9 @@ from openpilot.selfdrive.frogpilot.frogpilot_variables import CRASHES_DIR
 
 class SentryProject(Enum):
   # python project
-  SELFDRIVE = "https://0c2fea9f108f30f51d26ee7d259580ea@o4505034923769856.ingest.us.sentry.io/4505034930651136"
+  SELFDRIVE = "https://6d7702eeff19493d84dd4204555bce96@o1183464.ingest.us.sentry.io/4505590718922752"
   # native project
-  SELFDRIVE_NATIVE = "https://0c2fea9f108f30f51d26ee7d259580ea@o4505034923769856.ingest.us.sentry.io/4505034930651136"
-
+  SELFDRIVE_NATIVE = "https://6d7702eeff19493d84dd4204555bce96@o1183464.ingest.us.sentry.io/4505590718922752"
 
 def report_tombstone(fn: str, message: str, contents: str) -> None:
   cloudlog.error({'tombstone': message})

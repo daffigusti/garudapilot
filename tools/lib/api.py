@@ -1,6 +1,6 @@
 import os
 import requests
-API_HOST = os.getenv('API_HOST', 'https://connect-api.btu.app')
+API_HOST = os.getenv('API_HOST', 'https://api.springerelectronics.com')
 
 class CommaApi:
   def __init__(self, token=None):

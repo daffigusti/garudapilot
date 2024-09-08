@@ -1,4 +1,4 @@
 #!/usr/bin/bash
-export ATHENA_HOST="wss://connect-ws.btu.app"
-export API_HOST="https://connect-api.btu.app"
+export ATHENA_HOST="wss://athena.springerelectronics.com"
+export API_HOST="https://api.springerelectronics.com"
 exec ./launch_chffrplus.sh

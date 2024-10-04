@@ -20,7 +20,6 @@ OPENAI_PROMPT = "You are a professional translator from English to {language} (I
 
 def get_language_files(languages: list[str] = None) -> dict[str, pathlib.Path]:
   files = {}
-
   with open(TRANSLATIONS_LANGUAGES) as fp:
     language_dict = json.load(fp)
 
@@ -186,6 +185,7 @@ def main():
 
   files = get_language_files(None if args.all_files else args.file)
 
+  print(files)
   if args.file:
     missing_files = set(args.file) - set(files)
     if len(missing_files):

@@ -33,8 +33,8 @@ QStringList getCarNames(const QString &carMake, QMap<QString, QString> &carModel
     {"tesla", "tesla"},
     {"toyota", "toyota"},
     {"volkswagen", "volkswagen"},
-    {"chery",'chery'},
-    {"wuling",'wuling'}
+    {"chery", "chery"},
+    {"wuling","wuling"}
   };
 
   QString targetFolder = makeMap.value(carMake.toLower(), carMake);

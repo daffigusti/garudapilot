@@ -174,7 +174,7 @@ def create_button_msg(packer, bus: int,frame, stock_values: dict, cancel=False, 
   dat = packer.make_can_msg("STEER_BUTTON", bus, values)[2]
 
   crc = calculate_crc(dat[:-1], 0x1D, 0xA)
-  # values["CHECKSUM"] = crc
+  values["CHECKSUM"] = crc
 
   # print(values)
 

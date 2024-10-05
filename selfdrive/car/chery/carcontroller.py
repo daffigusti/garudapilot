@@ -85,8 +85,10 @@ class CarController:
     can_sends = []
 
     if CC.cruiseControl.cancel and (self.frame % self.params.BUTTONS_STEP) == 0:
-      can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera,self.frame, CS.buttons_stock_values, cancel=True))
-    elif CC.cruiseControl.resume and (self.frame % self.params.BUTTONS_STEP) == 0:
+      # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera,self.frame, CS.buttons_stock_values, cancel=True))
+      print('Send Cancel')
+
+    elif (CC.cruiseControl.resume or CS.needResume) and (self.frame % self.params.BUTTONS_STEP) == 0:
       can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame, CS.buttons_stock_values, resume=True))
       print('Send Resume')
     else:

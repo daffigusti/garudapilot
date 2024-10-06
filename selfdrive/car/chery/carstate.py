@@ -90,8 +90,9 @@ class CarState(CarStateBase):
     # steer_angle_fraction = pt_cp.vl["STEER_SENSOR"]["FRACTION"]
 
     # gas pedal
-    self.gasPos = pt_cp.vl["ENGINE_DATA"]["GAS_POS"]
-    ret.gas = 0 if self.gasPos >= 2559 or self.gasPos<=0 else self.gasPos
+    self.gasPos = pt_cp.vl["ENGINE_DATA"]["GAS"]
+    # ret.gas = 0 if self.gasPos >= 2559 or self.gasPos<=0 else self.gasPos
+    ret.gas = self.gasPos
     # ret.gasPressed = ret.gas > 1
     ret.gasPressed = (cam_cp.vl["ACC_CMD"]["GAS_PRESSED"]==1) if (cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0) else (ret.gas > 1)
 
@@ -136,7 +137,7 @@ class CarState(CarStateBase):
 
     ret.steeringTorque = pt_cp.vl["STEER_SENSOR_2"]["TORQUE_DRIVER"] * self.direction
 
-    ret.steeringTorqueEps = pt_cp.vl["STEER_ANGLE_SENSOR"]['STEER_TORQUE']
+    ret.steeringTorqueEps = pt_cp.vl["STEER_ANGLE_SENSOR"]['TORQUE']
 
     ret.steeringPressed = abs(ret.steeringTorque) > self.params.STEER_THRESHOLD
 
@@ -176,8 +177,11 @@ class CarState(CarStateBase):
       print('Main enabled', self.mainEnabled)
     # cruise state
     ret.cruiseState.available = cam_cp.vl["ACC_CMD"]["ACC_STATE"] != 1 or cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0
+    # ret.cruiseState.available =  True
+
     # ret.cruiseState.available = self.mainEnabled or cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0
     ret.cruiseState.enabled = cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0 or cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
+    # ret.cruiseState.enabled= self.mainEnabled
 
     self.needResume = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
     ret.cruiseState.speed = cam_cp.vl["SETTING"]["CC_SPEED"]

@@ -142,7 +142,7 @@ def create_lkas_state_hud(packer, frame, lkas, lkas_active):
   crc = calculate_crc(dat[:-1], 0x1D, 0xA)
   values["CHECKSUM"] = crc
 
-  return packer.make_can_msg("LKAS_STATE", 4, values)
+  return packer.make_can_msg("LKAS_STATE", 4, values if lkas_active else lkas)
 
 def create_button_msg(packer, bus: int,frame, stock_values: dict, cancel=False, resume=False):
   """

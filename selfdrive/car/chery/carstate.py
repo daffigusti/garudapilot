@@ -196,7 +196,6 @@ class CarState(CarStateBase):
     self.lkas_enabled = cam_cp.vl["LKAS_STATE"]["LKA_ACTIVE"] != 0
     self.lkas_active =  pt_cp.vl["LKAS"]['LKAS_CMD']
 
-
     # print('Lkas Command: ', self.lkas_active)
 
     # blindspot sensors

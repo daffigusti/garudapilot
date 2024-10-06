@@ -60,30 +60,7 @@ def create_longitudinal_control(packer, bus, acc, frame, long_active: bool, gas:
 
 def create_longitudinal_controlBypass(packer, bus, acc, frame):
 
-  values = {
-      "CMD": acc['CMD'],
-      "ACCEL_ON": acc['ACCEL_ON'],
-      "ACC_STATE":acc['ACC_STATE'],
-      "STOPPED":  acc['STOPPED'],
-      "ACC_STATE_2": acc['ACC_STATE_2'],
-      "NEW_SIGNAL_12": acc['NEW_SIGNAL_12'],
-      "NEW_SIGNAL_9": acc['NEW_SIGNAL_9'],
-      "NEW_SIGNAL_2": acc['NEW_SIGNAL_2'],
-      "STOPPING": acc['STOPPING'],
-      "NEW_SIGNAL_13": acc['NEW_SIGNAL_13'],
-      "NEW_SIGNAL_8": acc['NEW_SIGNAL_8'],
-      "NEW_SIGNAL_5": acc['NEW_SIGNAL_5'],
-      "NEW_SIGNAL_6": acc['NEW_SIGNAL_6'],
-      "NEW_SIGNAL_10": acc['NEW_SIGNAL_10'],
-      "NEW_SIGNAL_3": acc['NEW_SIGNAL_3'],
-      "NEW_SIGNAL_4": acc['NEW_SIGNAL_4'],
-      "NEW_SIGNAL_11": acc['NEW_SIGNAL_11'],
-      "GAS_PRESSED": acc['GAS_PRESSED'],
-      "COUNTER": acc['COUNTER'],
-      "CHECKSUM":acc['CHECKSUM'],
-  }
-
-  return packer.make_can_msg("ACC_CMD", bus, values)
+  return packer.make_can_msg("ACC_CMD", bus, acc)
 
 
 def create_steering_control_lkas(packer, apply_steer, frame, lkas_enable, lkas):

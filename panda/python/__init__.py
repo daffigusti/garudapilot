@@ -464,6 +464,7 @@ class Panda:
       self.close()
 
     success = False
+    time.sleep(1)
     # wait up to 15 seconds
     for _ in range(15*10):
       try:

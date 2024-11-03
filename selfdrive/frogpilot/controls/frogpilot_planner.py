@@ -41,7 +41,7 @@ class FrogPilotPlanner:
     if radarless_model:
       model_leads = list(modelData.leadsV3)
       if len(model_leads) > 0:
-        distance_offset = max(frogpilot_toggles.increased_stopped_distance + min(10 - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
+        distance_offset = frogpilot_toggles.increased_stopped_distance if not frogpilotCarState.trafficModeActive else 0
         model_lead = model_leads[0]
         self.lead_one.update(model_lead.x[0] - distance_offset, model_lead.y[0], model_lead.v[0], model_lead.a[0], model_lead.prob)
       else:

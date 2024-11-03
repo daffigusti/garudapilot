@@ -714,7 +714,7 @@ class FrogPilotVariables:
 
     toggle.volt_sng = car_model == "CHEVROLET_VOLT" and self.params.get_bool("VoltSNG")
 
-    customization_level = self.params.get_int("CustomizationLevel") if self.params.get_bool("CustomizationLevelConfirmed") else 2
+    customization_level = 2 #self.params.get_int("CustomizationLevel") if self.params.get_bool("CustomizationLevelConfirmed") else 2
 
     if customization_level == 0:
       toggle.advanced_custom_onroad_ui = self.default_frogpilot_toggles.AdvancedCustomUI

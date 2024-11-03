@@ -9,7 +9,7 @@ from sentry_sdk.integrations.threading import ThreadingIntegration
 
 from openpilot.common.params import Params, ParamKeyType
 from openpilot.system.athena.registration import is_registered_device
-from openpilot.system.hardware import HARDWARE, PC
+from openpilot.system.hardware import PC
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.version import get_build_metadata, get_version
 
@@ -87,7 +87,8 @@ def capture_fingerprint(candidate, params, blocked=False):
       matched_params[label] = {k: int(v) if isinstance(v, float) and v.is_integer() else v for k, v in sorted(key_values.items())}
 
   with sentry_sdk.configure_scope() as scope:
-    scope.fingerprint = [HARDWARE.get_serial()]
+    scope.fingerprint = [params.get("DongleId", encoding='utf-8')]
+
     for label, key_values in matched_params.items():
       scope.set_extra(label, "\n".join(f"{k}: {v}" for k, v in key_values.items()))
 
@@ -158,6 +159,8 @@ def init(project: SentryProject) -> bool:
   else:
     env = short_branch
 
+  dongle_id = params.get("DongleId", encoding='utf-8')
+
   integrations = []
   if project == SentryProject.SELFDRIVE:
     integrations.append(ThreadingIntegration(propagate_hub=True))
@@ -170,7 +173,7 @@ def init(project: SentryProject) -> bool:
                   max_value_length=8192,
                   environment=env)
 
-  sentry_sdk.set_user({"id": HARDWARE.get_serial()})
+  sentry_sdk.set_user({"id": dongle_id})
   sentry_sdk.set_tag("origin", build_metadata.openpilot.git_origin)
   sentry_sdk.set_tag("branch", short_branch)
   sentry_sdk.set_tag("commit", build_metadata.openpilot.git_commit)

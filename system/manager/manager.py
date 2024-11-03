@@ -6,6 +6,8 @@ import sys
 import threading
 import traceback
 
+from types import SimpleNamespace
+
 from cereal import log
 import cereal.messaging as messaging
 import openpilot.system.sentry as sentry
@@ -22,9 +24,8 @@ from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_I
 from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 
-from openpilot.selfdrive.frogpilot.assets.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME
 from openpilot.selfdrive.frogpilot.frogpilot_functions import convert_params, frogpilot_boot_functions, setup_frogpilot, uninstall_frogpilot
-from openpilot.selfdrive.frogpilot.frogpilot_variables import frogpilot_default_params, get_frogpilot_toggles
+from openpilot.selfdrive.frogpilot.frogpilot_variables import FrogPilotVariables, frogpilot_default_params, get_frogpilot_toggles
 
 
 def manager_init() -> None:
@@ -169,17 +170,14 @@ def manager_thread() -> None:
   pm = messaging.PubMaster(['managerState'])
 
   write_onroad_params(False, params)
-  ensure_running(managed_processes.values(), False, params=params, CP=sm['carParams'], not_run=ignore, classic_model=False)
+  ensure_running(managed_processes.values(), False, params=params, CP=sm['carParams'], not_run=ignore, classic_model=False, frogpilot_toggles=SimpleNamespace())
 
   started_prev = False
 
   # FrogPilot variables
+  FrogPilotVariables().update(False)
   frogpilot_toggles = get_frogpilot_toggles(True)
-  classic_model = getattr(frogpilot_toggles, 'classic_model', False)
-
-  error_log = os.path.join(sentry.CRASHES_DIR, 'error.txt')
-  if os.path.isfile(error_log):
-    os.remove(error_log)
+  classic_model = frogpilot_toggles.classic_model
 
   while True:
     sm.update(1000)
@@ -188,9 +186,6 @@ def manager_thread() -> None:
 
     if started and not started_prev:
       params.clear_all(ParamKeyType.CLEAR_ON_ONROAD_TRANSITION)
-
-      if os.path.isfile(error_log):
-        os.remove(error_log)
 
       # FrogPilot variables
       classic_model = frogpilot_toggles.classic_model
@@ -205,7 +200,7 @@ def manager_thread() -> None:
 
     started_prev = started
 
-    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore, classic_model=classic_model)
+    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore, classic_model=classic_model, frogpilot_toggles=frogpilot_toggles)
 
     running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name)
                        for p in managed_processes.values() if p.proc)

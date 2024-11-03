@@ -86,10 +86,10 @@ class FrogPilotPlanner:
     self.v_cruise = self.frogpilot_vcruise.update(carState, controlsState, frogpilotCarControl, frogpilotCarState, frogpilotNavigation, modelData, v_cruise, v_ego, frogpilot_toggles)
 
   def set_lead_status(self, frogpilotCarState, v_ego, frogpilot_toggles):
-    distance_offset = max(frogpilot_toggles.increased_stopped_distance + min(10 - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
+    distance_offset = frogpilot_toggles.increased_stopped_distance if not frogpilotCarState.trafficModeActive else 0
 
     following_lead = self.lead_one.status
-    following_lead &= 1 < self.lead_one.dRel - distance_offset < self.model_length + STOP_DISTANCE
+    following_lead &= 1 < self.lead_one.dRel < self.model_length + STOP_DISTANCE + distance_offset
     following_lead &= v_ego > CRUISING_SPEED or self.tracking_lead
 
     self.tracking_lead_mac.add_data(following_lead)

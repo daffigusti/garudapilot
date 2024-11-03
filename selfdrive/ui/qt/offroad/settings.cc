@@ -501,29 +501,29 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
           int openpilotHours = params.getInt("openpilotMinutes") / 60;
 
           if (frogpilotHours < 1 && openpilotHours < 100) {
-            if (FrogPilotConfirmationDialog::toggleAlert(tr("Welcome to FrogPilot! Since you're new to FrogPilot, the 'Basic' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this)) {
+            if (FrogPilotConfirmationDialog::toggleAlert(tr("Welcome to FrogPilot! Since you're new to FrogPilot, the 'Basic' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this, true)) {
               params.putBoolNonBlocking("CustomizationLevelConfirmed", true);
               params.putIntNonBlocking("CustomizationLevel", 0);
             }
           } else if (frogpilotHours < 50 && openpilotHours < 100) {
-            if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're fairly new to FrogPilot, the 'Basic' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this)) {
+            if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're fairly new to FrogPilot, the 'Basic' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this, true)) {
               params.putBoolNonBlocking("CustomizationLevelConfirmed", true);
               params.putIntNonBlocking("CustomizationLevel", 0);
             }
           } else if (frogpilotHours < 100) {
             if (openpilotHours >= 100 && frogpilotHours < 100) {
-              if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're experienced with openpilot, the 'Standard' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this)) {
+              if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're experienced with openpilot, the 'Standard' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this, true)) {
                 params.putBoolNonBlocking("CustomizationLevelConfirmed", true);
                 params.putIntNonBlocking("CustomizationLevel", 1);
               }
             } else {
-              if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're experienced with FrogPilot, the 'Standard' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this)) {
+              if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're experienced with FrogPilot, the 'Standard' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this, true)) {
                 params.putBoolNonBlocking("CustomizationLevelConfirmed", true);
                 params.putIntNonBlocking("CustomizationLevel", 1);
               }
             }
           } else if (frogpilotHours >= 100) {
-            if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're very experienced with FrogPilot, the 'Advanced' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this)) {
+            if (FrogPilotConfirmationDialog::toggleAlert(tr("Since you're very experienced with FrogPilot, the 'Advanced' toggle preset has been applied, but you can change this at any time via the 'Customization Level' button!"), tr("Sounds good!"), this, true)) {
               params.putBoolNonBlocking("CustomizationLevelConfirmed", true);
               params.putIntNonBlocking("CustomizationLevel", 2);
             }

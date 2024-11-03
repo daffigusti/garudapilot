@@ -225,7 +225,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
             QString selectedIconPack = formatIconNameForStorage(iconPackToDelete);
             for (const QFileInfo &dirInfo : dirList) {
               if (dirInfo.fileName() == selectedIconPack) {
-                QDir iconPackDir(dirInfo.absoluteFilePath() + "/distance_icons");
+                QDir iconPackDir(dirInfo.absoluteFilePath());
                 if (iconPackDir.exists()) {
                   iconPackDir.removeRecursively();
                 }
@@ -892,6 +892,8 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
 
   QObject::connect(parent, &FrogPilotSettingsWindow::closeParentToggle, this, &FrogPilotThemesPanel::hideToggles);
   QObject::connect(uiState(), &UIState::uiUpdate, this, &FrogPilotThemesPanel::updateState);
+
+  hideToggles();
 }
 
 void FrogPilotThemesPanel::showEvent(QShowEvent *event) {
@@ -932,6 +934,7 @@ void FrogPilotThemesPanel::updateState(const UIState &s) {
         });
         paramsMemory.remove("ThemeDownloadProgress");
         colorDownloading = false;
+        distanceIconDownloading = false;
         iconDownloading = false;
         signalDownloading = false;
         soundDownloading = false;
@@ -939,6 +942,7 @@ void FrogPilotThemesPanel::updateState(const UIState &s) {
         wheelDownloading = false;
 
         colorsDownloaded = params.get("DownloadableColors").empty();
+        distanceIconsDownloaded = params.get("DownloadableDistanceIcons").empty();
         iconsDownloaded = params.get("DownloadableIcons").empty();
         signalsDownloaded = params.get("DownloadableSignals").empty();
         soundsDownloaded = params.get("DownloadableSounds").empty();

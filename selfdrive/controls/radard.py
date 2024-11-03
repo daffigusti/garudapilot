@@ -205,7 +205,7 @@ def get_lead(v_ego: float, ready: bool, tracks: dict[int, Track], lead_msg: capn
         lead_dict = closest_track.get_RadarState()
 
   if 'dRel' in lead_dict:
-    lead_dict['dRel'] -= max(frogpilot_toggles.increased_stopped_distance + min(10 - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
+    lead_dict['dRel'] -= frogpilot_toggles.increased_stopped_distance if not frogpilotCarState.trafficModeActive else 0
 
   return lead_dict
 

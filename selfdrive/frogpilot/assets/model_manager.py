@@ -73,8 +73,8 @@ class ModelManager:
       else:
         return {file['name'].replace('.thneed', ''): file['size'] for file in thneed_files if 'size' in file}
 
-    except requests.RequestException as e:
-      raise ConnectionError(f"Failed to fetch model sizes from {'GitHub' if 'github' in repo_url else 'GitLab'}: {e}")
+    except:
+      return {}
 
   @staticmethod
   def copy_default_model():
@@ -92,40 +92,41 @@ class ModelManager:
       shutil.copyfile(source_path, default_model_path)
       print(f"Copied the default model from {source_path} to {default_model_path}")
 
-  def handle_verification_failure(self, model, model_path):
+  def handle_verification_failure(self, model, model_path, temp_model_path):
     if self.params_memory.get_bool(self.cancel_download_param):
       return
 
     print(f"Verification failed for model {model}. Retrying from GitLab...")
     model_url = f"{GITLAB_URL}Models/{model}.thneed"
-    download_file(self.cancel_download_param, model_path, self.download_progress_param, model_url, self.download_param, self.params_memory)
+    download_file(self.cancel_download_param, model_path, temp_model_path, self.download_progress_param, model_url, self.download_param, self.params_memory)
 
-    if verify_download(model_path, model_url):
+    if verify_download(model_path, temp_model_path, model_url):
       print(f"Model {model} redownloaded and verified successfully from GitLab.")
     else:
       handle_error(model_path, "GitLab verification failed", "Verification failed", self.download_param, self.download_progress_param, self.params_memory)
 
   def download_model(self, model_to_download):
     model_path = os.path.join(MODELS_PATH, f"{model_to_download}.thneed")
+    temp_model_path = f"{os.path.splitext(model_path)[0]}_temp.thneed"
     if os.path.isfile(model_path):
       handle_error(model_path, "Model already exists...", "Model already exists...", self.download_param, self.download_progress_param, self.params_memory)
       return
 
     repo_url = get_repository_url()
     if not repo_url:
-      handle_error(model_path, "GitHub and GitLab are offline...", "Repository unavailable", self.download_param, self.download_progress_param, self.params_memory)
+      handle_error(temp_model_path, "GitHub and GitLab are offline...", "Repository unavailable", self.download_param, self.download_progress_param, self.params_memory)
       return
 
     model_url = f"{repo_url}Models/{model_to_download}.thneed"
     print(f"Downloading model: {model_to_download}")
-    download_file(self.cancel_download_param, model_path, self.download_progress_param, model_url, self.download_param, self.params_memory)
+    download_file(self.cancel_download_param, model_path, temp_model_path, self.download_progress_param, model_url, self.download_param, self.params_memory)
 
-    if verify_download(model_path, model_url):
+    if verify_download(model_path, temp_model_path, model_url):
       print(f"Model {model_to_download} downloaded and verified successfully!")
       self.params_memory.put(self.download_progress_param, "Downloaded!")
       self.params_memory.remove(self.download_param)
     else:
-      self.handle_verification_failure(model_to_download, model_path)
+      self.handle_verification_failure(model_to_download, model_path, temp_model_path)
 
   def queue_model_download(self, model, model_name=None):
     while self.params_memory.get(self.download_param, encoding='utf-8'):

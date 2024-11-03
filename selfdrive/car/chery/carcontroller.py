@@ -123,7 +123,7 @@ class CarController:
       self.last_steer_frame = self.frame
 
       # print('Apply steer.',apply_steer)
-      can_sends.append(cherycan.create_steering_control_lkas(self.packer_pt, apply_angle, self.frame, apply_steer_req, CS.lkas_cmd))
+      can_sends.append(cherycan.create_steering_control_lkas(self.packer_pt, self.CAN.main, apply_angle, self.frame, apply_steer_req, CS.lkas_cmd))
 
     # if  (self.frame  % self.params.LKAS_HUD_STEP) == 0:
     #   can_sends.append(cherycan.create_lkas_state(self.packer_pt, 0, self.frame, CC.latActive, CS.lkas_state))
@@ -147,7 +147,7 @@ class CarController:
     if self.frame % 20 == 0:
       ldw = CC.hudControl.visualAlert == VisualAlert.ldw
       steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
-      can_sends.append(cherycan.create_lkas_state_hud(self.packer_pt, self.frame, CS.lkas_state, apply_steer_req))
+      can_sends.append(cherycan.create_lkas_state_hud(self.packer_pt,self.CAN.main, self.frame, CS.lkas_state, apply_steer_req))
 
     new_actuators = CC.actuators.as_builder()
     new_actuators.steeringAngleDeg = self.apply_angle_last

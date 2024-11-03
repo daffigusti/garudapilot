@@ -63,7 +63,7 @@ def create_longitudinal_controlBypass(packer, bus, acc, frame):
   return packer.make_can_msg("ACC_CMD", bus, acc)
 
 
-def create_steering_control_lkas(packer, apply_steer, frame, lkas_enable, lkas):
+def create_steering_control_lkas(packer, bus: int, apply_steer, frame, lkas_enable, lkas):
   # idx = (apply_steer) % 1000
   apply_steer = int((apply_steer*10)-389)
   if apply_steer>= 0 and apply_steer <=2 :
@@ -85,7 +85,7 @@ def create_steering_control_lkas(packer, apply_steer, frame, lkas_enable, lkas):
   }
   # values["COUNTER"] = (values["COUNTER"] + 1) % 0x0f
 
-  dat = packer.make_can_msg("LKAS_CAM_CMD_345", 4, values)[2]
+  dat = packer.make_can_msg("LKAS_CAM_CMD_345", bus, values)[2]
 
   crc = calculate_crc(dat[:-1], 0x1D, 0xA)
   values["CHECKSUM"] = crc
@@ -99,10 +99,10 @@ def create_steering_control_lkas(packer, apply_steer, frame, lkas_enable, lkas):
   if not lkas_enable:
     values = lkas
 
-  return packer.make_can_msg("LKAS_CAM_CMD_345", 4, values)
+  return packer.make_can_msg("LKAS_CAM_CMD_345", bus, values)
 
 
-def create_lkas_state_hud(packer, frame, lkas, lkas_active):
+def create_lkas_state_hud(packer, bus: int, frame, lkas, lkas_active):
 
   values = {
       "NEW_SIGNAL_1": 1,
@@ -114,12 +114,12 @@ def create_lkas_state_hud(packer, frame, lkas, lkas_active):
       "COUNTER": (frame) % 0x0f,
   }
 
-  dat = packer.make_can_msg("LKAS_STATE", 4, values)[2]
+  dat = packer.make_can_msg("LKAS_STATE", bus, values)[2]
 
   crc = calculate_crc(dat[:-1], 0x1D, 0xA)
   values["CHECKSUM"] = crc
 
-  return packer.make_can_msg("LKAS_STATE", 4, values if lkas_active else lkas)
+  return packer.make_can_msg("LKAS_STATE", bus, values if lkas_active else lkas)
 
 def create_button_msg(packer, bus: int,frame, stock_values: dict, cancel=False, resume=False):
   """

@@ -259,8 +259,8 @@ class CarInterfaceBase(ABC):
     self.lat_torque_nn_model = get_nn_model(car, eps_firmware)
     return self.lat_torque_nn_model is not None
 
-  def apply(self, c: car.CarControl, now_nanos: int, frogpilot_toggles) -> tuple[car.CarControl.Actuators, list[tuple[int, int, bytes, int]]]:
-    return self.CC.update(c, self.CS, now_nanos, frogpilot_toggles)
+  def apply(self, c: car.CarControl, now_nanos: int, experimentalMode, frogpilot_toggles) -> tuple[car.CarControl.Actuators, list[tuple[int, int, bytes, int]]]:
+    return self.CC.update(c, self.CS, now_nanos, experimentalMode, frogpilot_toggles)
 
   @staticmethod
   def get_pid_accel_limits(CP, current_speed, cruise_speed, frogpilot_toggles):
@@ -278,6 +278,7 @@ class CarInterfaceBase(ABC):
     ret = CarInterfaceBase.get_std_params(candidate)
 
     platform = PLATFORMS[candidate]
+    print(platform.config.specs)
     ret.mass = platform.config.specs.mass
     ret.wheelbase = platform.config.specs.wheelbase
     ret.steerRatio = platform.config.specs.steerRatio

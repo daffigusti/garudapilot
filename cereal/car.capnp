@@ -566,6 +566,8 @@ struct CarParams {
     kiBP @2 :List(Float32);
     kiV @3 :List(Float32);
     kf @4 :Float32;
+    kdBP @5 :List(Float32);
+    kdV @6 :List(Float32);
   }
 
   struct LateralTorqueTuning {
@@ -649,9 +651,11 @@ struct CarParams {
     hongqi @26;
     body @27;
     hyundaiCanfd @28;
-    volkswagenMqbEvo @29;
-    chryslerCusw @30;
-    psa @31;
+    wuling @29;
+    volkswagenMqbEvo @30;
+    chryslerCusw @31;
+    psa @32;
+    cheryCanFd @33;
   }
 
   enum SteerControlType {

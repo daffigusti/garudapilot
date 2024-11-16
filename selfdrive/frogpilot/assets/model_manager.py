@@ -73,7 +73,7 @@ class ModelManager:
       else:
         return {file['name'].replace('.thneed', ''): file['size'] for file in thneed_files if 'size' in file}
     except Exception as e:
-      raise ConnectionError(f"Failed to fetch model sizes from {'GitHub' if 'github' in repo_url else 'GitLab'}: {e}")
+      handle_request_error(f"Failed to fetch model sizes from {'GitHub' if 'github' in repo_url else 'GitLab'}: {e}", None, None, None, None)
       return {}
 
   @staticmethod
@@ -154,6 +154,8 @@ class ModelManager:
       self.params.put_bool_nonblocking("ModelsDownloaded", models_downloaded)
 
   def are_all_models_downloaded(self, available_models, repo_url):
+    available_models = set(available_models) - {DEFAULT_MODEL}
+
     automatically_update_models = self.params.get_bool("AutomaticallyUpdateModels")
     all_models_downloaded = True
 

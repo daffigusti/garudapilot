@@ -411,7 +411,8 @@ class Controls:
     planner_fcw = self.sm['longitudinalPlan'].fcw and self.enabled
     if (planner_fcw or model_fcw) and not (self.CP.notCar and self.joystick_mode):
       self.events.add(EventName.fcw)
-      self.fcw_event_triggered = True
+      if self.frogpilot_toggles.random_events:
+        self.fcw_event_triggered = True
 
     for m in messaging.drain_sock(self.log_sock, wait_for_one=False):
       try:
@@ -557,7 +558,8 @@ class Controls:
       if self.events.contains(ET.ENABLE):
         if self.events.contains(ET.NO_ENTRY):
           self.current_alert_types.append(ET.NO_ENTRY)
-          self.no_entry_alert_triggered = True
+          if self.frogpilot_toggles.random_events:
+            self.no_entry_alert_triggered = True
 
         else:
           if self.events.contains(ET.PRE_ENABLE):
@@ -690,7 +692,8 @@ class Controls:
         max_torque = abs(self.sm['carOutput'].actuatorsOutput.steer) > 0.99
         if undershooting and turning and good_speed and max_torque:
           lac_log.active and self.events.add(EventName.goatSteerSaturated if self.frogpilot_toggles.goat_scream_alert else EventName.steerSaturated)
-          self.steer_saturated_event_triggered = True
+          if self.frogpilot_toggles.random_events:
+            self.steer_saturated_event_triggered = True
         else:
           self.steer_saturated_event_triggered = False
       elif lac_log.saturated:

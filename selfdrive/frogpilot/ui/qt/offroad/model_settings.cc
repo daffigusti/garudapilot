@@ -22,6 +22,7 @@ FrogPilotModelPanel::FrogPilotModelPanel(FrogPilotSettingsWindow *parent) : Frog
     if (param == "ModelRandomizer") {
       FrogPilotParamManageControl *modelRandomizerToggle = new FrogPilotParamManageControl(param, title, desc, icon);
       QObject::connect(modelRandomizerToggle, &FrogPilotParamManageControl::manageButtonClicked, [this]() {
+        modelRandomizerOpen = true;
         showToggles(modelRandomizerKeys);
         updateModelLabels();
       });
@@ -69,8 +70,8 @@ FrogPilotModelPanel::FrogPilotModelPanel(FrogPilotSettingsWindow *parent) : Frog
       });
       modelToggle = blacklistBtn;
     } else if (param == "ResetScores") {
-      ButtonControl *resetCalibrationsBtn = new ButtonControl(title, tr("RESET"), desc);
-      QObject::connect(resetCalibrationsBtn, &ButtonControl::clicked, [this]() {
+      ButtonControl *resetScoresBtn = new ButtonControl(title, tr("RESET"), desc);
+      QObject::connect(resetScoresBtn, &ButtonControl::clicked, [this]() {
         if (FrogPilotConfirmationDialog::yesorno(tr("Reset all model scores?"), this)) {
           for (const QString &model : availableModelNames) {
             QString cleanedModel = processModelName(model);
@@ -82,7 +83,7 @@ FrogPilotModelPanel::FrogPilotModelPanel(FrogPilotSettingsWindow *parent) : Frog
           updateModelLabels();
         }
       });
-      modelToggle = reinterpret_cast<AbstractControl*>(resetCalibrationsBtn);
+      modelToggle = reinterpret_cast<AbstractControl*>(resetScoresBtn);
     } else if (param == "ReviewScores") {
       ButtonControl *reviewScoresBtn = new ButtonControl(title, tr("VIEW"), desc);
       QObject::connect(reviewScoresBtn, &ButtonControl::clicked, [this]() {
@@ -506,6 +507,8 @@ void FrogPilotModelPanel::showToggles(const std::set<QString> &keys) {
 void FrogPilotModelPanel::hideToggles() {
   setUpdatesEnabled(false);
 
+  modelRandomizerOpen = false;
+
   for (LabelControl *label : labelControls) {
     label->setVisible(false);
   }
@@ -521,7 +524,18 @@ void FrogPilotModelPanel::hideToggles() {
 }
 
 void FrogPilotModelPanel::hideSubToggles() {
-  for (LabelControl *label : labelControls) {
-    label->setVisible(false);
+  setUpdatesEnabled(false);
+
+  if (modelRandomizerOpen) {
+    for (LabelControl *label : labelControls) {
+      label->setVisible(false);
+    }
+
+    for (auto &[key, toggle] : toggles) {
+      toggle->setVisible(modelRandomizerKeys.find(key) != modelRandomizerKeys.end());
+    }
   }
+
+  setUpdatesEnabled(true);
+  update();
 }

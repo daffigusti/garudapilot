@@ -10,7 +10,7 @@ FrogPilotDataPanel::FrogPilotDataPanel(FrogPilotSettingsWindow *parent) : FrogPi
         deleteDrivingDataBtn->setEnabled(false);
         deleteDrivingDataBtn->setValue(tr("Deleting..."));
 
-        std::system("rm -rf /data/media/0/realdata");
+        std::system("find /data/media/0/realdata -mindepth 1 -delete");
 
         deleteDrivingDataBtn->setValue(tr("Deleted!"));
 

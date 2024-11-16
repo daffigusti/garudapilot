@@ -263,6 +263,7 @@ void FrogPilotMapsPanel::finalizeDownload() {
   params.putNonBlocking("LastMapsUpdate", formattedDate.toStdString());
   params.remove("OSMDownloadProgress");
 
+  mapsSize->setText(calculateDirectorySize(mapsFolderPath));
   resetDownloadLabels();
 
   downloadMapsButton->setText(tr("DOWNLOAD"));
@@ -311,7 +312,7 @@ void FrogPilotMapsPanel::displayMapButtons(bool visible) {
   lastMapsDownload->setVisible(!visible && !downloadActive);
   mapsSize->setVisible(!visible);
   preferredSchedule->setVisible(!visible);
-  removeMapsButton->setVisible(!visible && QDir(mapsFolderPath).exists());
+  removeMapsButton->setVisible(!visible && QDir(mapsFolderPath).exists() && !downloadActive);
   selectMapsButton->setVisible(!visible);
 
   africaMaps->setVisible(visible && countriesOpen);

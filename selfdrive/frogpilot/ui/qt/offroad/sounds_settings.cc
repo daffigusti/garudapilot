@@ -1,4 +1,24 @@
+#include <filesystem>
+
 #include "selfdrive/frogpilot/ui/qt/offroad/sounds_settings.h"
+
+void playSound(const std::string &alert, int volume) {
+  std::string stockPath = "/data/openpilot/selfdrive/assets/sounds/" + alert + ".wav";
+  std::string themePath = "/data/openpilot/selfdrive/frogpilot/assets/active_theme/sounds/" + alert + ".wav";
+
+  std::string filePath;
+  if (std::filesystem::exists(themePath)) {
+    filePath = themePath;
+  } else if (std::filesystem::exists(stockPath)) {
+    filePath = stockPath;
+  } else {
+    return;
+  }
+
+  volume = std::clamp(volume, 0, 100);
+  std::string command = "ffplay -nodisp -autoexit -volume " + std::to_string(volume) + " \"" + filePath + "\"";
+  std::system(command.c_str());
+}
 
 FrogPilotSoundsPanel::FrogPilotSoundsPanel(FrogPilotSettingsWindow *parent) : FrogPilotListWidget(parent), parent(parent) {
   const std::vector<std::tuple<QString, QString, QString, QString>> soundsToggles {
@@ -33,10 +53,11 @@ FrogPilotSoundsPanel::FrogPilotSoundsPanel(FrogPilotSettingsWindow *parent) : Fr
       for (int i = 0; i <= 101; ++i) {
         volumeLabels[i] = i == 101 ? tr("Auto") : i == 0 ? tr("Muted") : QString::number(i) + "%";
       }
+      std::vector<QString> alertButton{"Test"};
       if (param == "WarningImmediateVolume") {
-        soundsToggle = new FrogPilotParamValueControl(param, title, desc, icon, 25, 101, QString(), volumeLabels);
+        soundsToggle = new FrogPilotParamValueButtonControl(param, title, desc, icon, 25, 101, QString(), volumeLabels, 1, {}, alertButton, false, false);
       } else {
-        soundsToggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 101, QString(), volumeLabels);
+        soundsToggle = new FrogPilotParamValueButtonControl(param, title, desc, icon, 0, 101, QString(), volumeLabels, 1, {}, alertButton, false, false);
       }
 
     } else if (param == "CustomAlerts") {
@@ -71,6 +92,26 @@ FrogPilotSoundsPanel::FrogPilotSoundsPanel(FrogPilotSettingsWindow *parent) : Fr
 
     QObject::connect(soundsToggle, &AbstractControl::showDescriptionEvent, [this]() {
       update();
+    });
+  }
+
+  for (const QString &key : alertVolumeControlKeys) {
+    FrogPilotParamValueButtonControl *toggle = static_cast<FrogPilotParamValueButtonControl*>(toggles[key]);
+    QObject::connect(toggle, &FrogPilotParamValueButtonControl::buttonClicked, [=]() {
+      QString alertKey = key;
+      alertKey.remove("Volume");
+      QString snakeCaseKey;
+      for (int i = 0; i < alertKey.size(); ++i) {
+        QChar c = alertKey[i];
+        if (c.isUpper() && i > 0) {
+          snakeCaseKey += '_';
+        }
+        snakeCaseKey += c.toLower();
+      }
+
+      std::thread([=]() {
+        playSound(snakeCaseKey.toStdString(), params.getInt(key.toStdString()));
+      }).detach();
     });
   }
 

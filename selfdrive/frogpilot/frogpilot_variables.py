@@ -2,6 +2,7 @@ import json
 import math
 import os
 import random
+import time
 
 from types import SimpleNamespace
 
@@ -588,8 +589,9 @@ class FrogPilotVariables:
 
     available_models = self.params.get("AvailableModels", block=openpilot_installed and started, encoding='utf-8') or ""
     available_model_names = self.params.get("AvailableModelsNames", block=openpilot_installed and started, encoding='utf-8') or ""
+    toggle.model_randomizer = self.params.get_bool("ModelRandomizer")
     if available_models:
-      if self.params.get_bool("ModelRandomizer"):
+      if toggle.model_randomizer:
         blacklisted_models = (self.params.get("BlacklistedModels", encoding='utf-8') or "").split(',')
         existing_models = [model for model in available_models.split(',') if model not in blacklisted_models and os.path.exists(os.path.join(MODELS_PATH, f"{model}.thneed"))]
         toggle.model = random.choice(existing_models) if existing_models else DEFAULT_MODEL
@@ -885,6 +887,7 @@ class FrogPilotVariables:
       toggle.max_desired_acceleration = clip(float(self.default_frogpilot_toggles.MaxDesiredAcceleration), 0.1, 4.0) if toggle.longitudinal_tuning else 4.0
 
       toggle.model = DEFAULT_MODEL
+      toggle.model_randomizer = self.default_frogpilot_toggles.ModelRandomizer
       toggle.part_model_param = ""
       toggle.classic_model = bool(classic_models and toggle.model in classic_models.split(','))
       toggle.navigationless_model = bool(navigation_models and toggle.model not in navigation_models.split(','))
@@ -960,7 +963,6 @@ class FrogPilotVariables:
       toggle.speed_limit_priority3 = self.default_frogpilot_toggles.SLCPriority3 if toggle.speed_limit_controller else None
       toggle.speed_limit_priority_highest = bool(toggle.speed_limit_priority1 == "Highest")
       toggle.speed_limit_priority_lowest = bool(toggle.speed_limit_priority1 == "Lowest")
-      toggle.speed_limit_vienna = bool(toggle.speed_limit_controller and self.default_frogpilot_toggles.UseVienna)
 
       toggle.startup_alert_top = str(self.default_frogpilot_toggles.StartupMessageTop)
       toggle.startup_alert_bottom = str(self.default_frogpilot_toggles.StartupMessageBottom)
@@ -1094,6 +1096,7 @@ class FrogPilotVariables:
       toggle.max_desired_acceleration = clip(float(self.default_frogpilot_toggles.MaxDesiredAcceleration), 0.1, 4.0) if toggle.longitudinal_tuning else 4.0
 
       toggle.model = DEFAULT_MODEL
+      toggle.model_randomizer = self.default_frogpilot_toggles.ModelRandomizer
       toggle.part_model_param = ""
       toggle.classic_model = bool(classic_models and toggle.model in classic_models.split(','))
       toggle.navigationless_model = bool(navigation_models and toggle.model not in navigation_models.split(','))
@@ -1151,7 +1154,6 @@ class FrogPilotVariables:
       toggle.speed_limit_priority3 = self.default_frogpilot_toggles.SLCPriority3 if toggle.speed_limit_controller else None
       toggle.speed_limit_priority_highest = bool(toggle.speed_limit_priority1 == "Highest")
       toggle.speed_limit_priority_lowest = bool(toggle.speed_limit_priority1 == "Lowest")
-      toggle.speed_limit_vienna = bool(toggle.speed_limit_controller and self.default_frogpilot_toggles.UseVienna)
 
       toggle.startup_alert_top = str(self.default_frogpilot_toggles.StartupMessageTop)
       toggle.startup_alert_bottom = str(self.default_frogpilot_toggles.StartupMessageBottom)

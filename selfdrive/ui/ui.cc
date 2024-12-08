@@ -460,19 +460,22 @@ void ui_update_frogpilot_params(UIState *s) {
 }
 
 void ui_update_theme(UIState *s) {
-  loadThemeColors("", true);
-
   UIScene &scene = s->scene;
 
-  scene.lane_lines_color = loadThemeColors("LaneLines");
-  scene.lead_marker_color = loadThemeColors("LeadMarker");
-  scene.path_color = loadThemeColors("Path");
-  scene.path_edges_color = loadThemeColors("PathEdge");
-  scene.sidebar_color1 = loadThemeColors("Sidebar1");
-  scene.sidebar_color2 = loadThemeColors("Sidebar2");
-  scene.sidebar_color3 = loadThemeColors("Sidebar3");
   scene.use_stock_colors = scene.frogpilot_toggles.value("color_scheme").toString() == "stock" && scene.frogpilot_toggles.value("current_holiday_theme").toString() == "stock";
   scene.use_stock_wheel = scene.frogpilot_toggles.value("wheel_image").toString() == "stock" && scene.frogpilot_toggles.value("current_holiday_theme").toString() == "stock";
+
+  if (!scene.use_stock_colors) {
+    loadThemeColors("", true);
+
+    scene.lane_lines_color = loadThemeColors("LaneLines");
+    scene.lead_marker_color = loadThemeColors("LeadMarker");
+    scene.path_color = loadThemeColors("Path");
+    scene.path_edges_color = loadThemeColors("PathEdge");
+    scene.sidebar_color1 = loadThemeColors("Sidebar1");
+    scene.sidebar_color2 = loadThemeColors("Sidebar2");
+    scene.sidebar_color3 = loadThemeColors("Sidebar3");
+  }
 
   emit s->themeUpdated();
 }

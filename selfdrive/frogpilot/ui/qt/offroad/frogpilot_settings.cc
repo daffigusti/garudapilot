@@ -18,16 +18,16 @@
 #include "selfdrive/frogpilot/ui/qt/offroad/visual_settings.h"
 
 bool checkNNFFLogFileExists(const std::string &carFingerprint) {
-  const std::filesystem::path latModelsPath("../car/torque_data/lat_models");
-
-  if (!std::filesystem::exists(latModelsPath)) {
-    std::cerr << "Lat models directory does not exist." << std::endl;
-    return false;
+  static std::vector<std::string> files;
+  if (files.empty()) {
+    for (std::filesystem::directory_entry entry : std::filesystem::directory_iterator("../car/torque_data/lat_models")) {
+      files.emplace_back(entry.path().filename().stem().string());
+    }
   }
 
-  for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(latModelsPath)) {
-    if (entry.path().filename().string().rfind(carFingerprint, 0) == 0) {
-      std::cout << "NNFF supports fingerprint: " << entry.path().filename() << std::endl;
+  for (const std::string &file : files) {
+    if (file.rfind(carFingerprint, 0) == 0) {
+      std::cout << "NNFF supports fingerprint: " << file << std::endl;
       return true;
     }
   }
@@ -156,6 +156,7 @@ FrogPilotSettingsWindow::FrogPilotSettingsWindow(SettingsWindow *parent) : QFram
   QObject::connect(parent, &SettingsWindow::closeMapBoxInstructions, this, &FrogPilotSettingsWindow::closeMapBoxInstructions);
   QObject::connect(parent, &SettingsWindow::closeMapSelection, this, &FrogPilotSettingsWindow::closeMapSelection);
   QObject::connect(parent, &SettingsWindow::closePanel, this, &FrogPilotSettingsWindow::closePanel);
+  QObject::connect(parent, &SettingsWindow::closePanel, this, &updateFrogPilotToggles);
   QObject::connect(parent, &SettingsWindow::closeParentToggle, this, &FrogPilotSettingsWindow::closeParentToggle);
   QObject::connect(parent, &SettingsWindow::closeSettings, this, &updateFrogPilotToggles);
   QObject::connect(parent, &SettingsWindow::closeSubParentToggle, this, &FrogPilotSettingsWindow::closeSubParentToggle);

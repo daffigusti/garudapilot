@@ -196,8 +196,6 @@ def frogpilot_thread():
     if now.second % 2 == 0:
       check_assets(model_manager, theme_manager, frogpilot_toggles)
 
-      theme_updated = theme_manager.update_active_theme(time_validated, frogpilot_toggles)
-
     run_update_checks |= params_memory.get_bool("ManualUpdateInitiated")
     run_update_checks |= now.second == 0 and (now.minute % 60 == 0 or frogpilot_toggles.frogs_go_moo)
     run_update_checks &= time_validated

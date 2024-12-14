@@ -12,7 +12,7 @@ import requests
 TRANSLATIONS_DIR = pathlib.Path(__file__).resolve().parent
 TRANSLATIONS_LANGUAGES = TRANSLATIONS_DIR / "languages.json"
 
-OPENAI_MODEL = "gpt-4"
+OPENAI_MODEL = "gpt-4o"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_PROMPT = "You are a professional translator from English to {language} (ISO 639 language code). " + \
                 "The following sentence or word is in the GUI of a software called openpilot, translate it accordingly."
@@ -20,7 +20,6 @@ OPENAI_PROMPT = "You are a professional translator from English to {language} (I
 
 def get_language_files(languages: list[str] = None) -> dict[str, pathlib.Path]:
   files = {}
-
   with open(TRANSLATIONS_LANGUAGES) as fp:
     language_dict = json.load(fp)
 
@@ -121,6 +120,7 @@ def main():
 
   files = get_language_files(None if args.all_files else args.file)
 
+  print(files)
   if args.file:
     missing_files = set(args.file) - set(files)
     if len(missing_files):

@@ -28,7 +28,7 @@ class CarInterface(CarInterfaceBase):
     self.dp_override_speed = 0. # m/s
 
   @staticmethod
-  def _get_params(ret, candidate, fingerprint, car_fw, disable_openpilot_long, experimental_long, docs, params):
+  def _get_params(ret, candidate, fingerprint, car_fw, disable_openpilot_long, experimental_long, docs):
     ret.carName = "chery"
 
     CAN = CanBus(fingerprint=fingerprint)

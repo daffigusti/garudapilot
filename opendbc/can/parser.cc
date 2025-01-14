@@ -193,12 +193,14 @@ void CANParser::update_strings(const std::vector<std::string> &data, std::vector
 }
 
 void CANParser::UpdateCans(uint64_t nanos, const capnp::List<cereal::CanData>::Reader& cans) {
-  //DEBUG("got %d messages\n", cans.size());
+  // DEBUG("got %d messages\n", cans.size());
 
   bool bus_empty = true;
 
   // parse the messages
   for (const auto cmsg : cans) {
+    // DEBUG("got 0x%X: bus %d \n", cmsg.getAddress(), bus);
+
     if (cmsg.getSrc() != bus) {
       // DEBUG("skip %d: wrong bus\n", cmsg.getAddress());
       continue;
@@ -243,6 +245,8 @@ void CANParser::UpdateCans(uint64_t nanos, const capnp::List<cereal::CanData>::R
 void CANParser::UpdateCans(uint64_t nanos, const capnp::DynamicStruct::Reader& cmsg) {
   // assume message struct is `cereal::CanData` and parse
   assert(cmsg.has("address") && cmsg.has("src") && cmsg.has("dat") && cmsg.has("busTime"));
+
+  // DEBUG("got 0x%X: bus %d \n",  cmsg.get("address").as<uint32_t>(), bus);
 
   if (cmsg.get("src").as<uint8_t>() != bus) {
     DEBUG("skip %d: wrong bus\n", cmsg.get("address").as<uint32_t>());

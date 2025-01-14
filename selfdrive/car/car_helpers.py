@@ -193,6 +193,9 @@ def get_car(logcan, sendcan, disable_openpilot_long, experimental_long_allowed, 
 
   candidate, fingerprints, vin, car_fw, source, exact_match = fingerprint(logcan, sendcan, num_pandas)
 
+  print('car model %s ' % car_model)
+  print('candidat %s ' % candidate)
+
   if candidate is None or force_fingerprint:
     if car_model is not None:
       candidate = car_model

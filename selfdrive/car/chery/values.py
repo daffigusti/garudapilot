@@ -100,7 +100,7 @@ class CheryCarDocs(CarDocs):
 @dataclass(frozen=True)
 class CheryCarSpecs(CarSpecs):
   centerToFrontRatio: float = 0.44
-  steerRatio: float = 17.
+  steerRatio: float = 14.
 
 @dataclass
 class CheryPlatformConfig(PlatformConfig):
@@ -110,7 +110,7 @@ class CheryPlatformConfig(PlatformConfig):
 class CAR(Platforms):
   CHERY_OMODA_E5 = CheryPlatformConfig(
     [CheryCarDocs("Chery Omoda E5")],
-    CheryCarSpecs(mass=1785, wheelbase=2.63, steerRatio=17.5)
+    CheryCarSpecs(mass=1785, wheelbase=2.63, steerRatio=14)
   )
 
 

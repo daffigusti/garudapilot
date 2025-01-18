@@ -42,7 +42,7 @@ CAMERA_OFFSET = 0.04
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
-IGNORE_PROCESSES = {"loggerd", "encoderd", "statsd"}
+IGNORE_PROCESSES = {"loggerd", "encoderd", "statsd",'updated'}
 
 ThermalStatus = log.DeviceState.ThermalStatus
 State = log.ControlsState.OpenpilotState
@@ -55,12 +55,14 @@ ButtonType = car.CarState.ButtonEvent.Type
 FrogPilotButtonType = custom.FrogPilotCarState.ButtonEvent.Type
 SafetyModel = car.CarParams.SafetyModel
 
-IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
+IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput, SafetyModel.elm327)
 CSID_MAP = {"1": EventName.roadCameraError, "2": EventName.wideRoadCameraError, "0": EventName.driverCameraError}
 ACTUATOR_FIELDS = tuple(car.CarControl.Actuators.schema.fields.keys())
 ACTIVE_STATES = (State.enabled, State.softDisabling, State.overriding)
 ENABLED_STATES = (State.preEnabled, *ACTIVE_STATES)
 
+def sec_since_boot():
+  return time.time()
 
 class Controls:
   def __init__(self, CI=None):
@@ -161,6 +163,10 @@ class Controls:
     self.v_cruise_helper = VCruiseHelper(self.CP)
     self.recalibrating_seen = False
 
+    self.params_check_last_t = 0.0
+    self.params_check_freq = 0.3
+    self.op_params_override_lateral = True
+    # TODO: no longer necessary, aside from process replay
     self.can_log_mono_time = 0
 
     if car_recognized and not self.CP.passive and self.CP.secOcRequired and not self.CP.secOcKeyAvailable:
@@ -242,6 +248,12 @@ class Controls:
     if not self.CP.notCar:
       self.events.add_from_msg(self.sm['driverMonitoringState'].events)
 
+    if self.CP.lateralTuning.which() == 'pid' and self.CP.steerControlType != car.CarParams.SteerControlType.angle:
+      t = sec_since_boot()
+      if t - self.params_check_last_t > self.params_check_freq:
+        if self.op_params_override_lateral:
+          self.LaC.update_op_params()
+        self.params_check_last_t = t
     # Add car events, ignore if CAN isn't valid
     if CS.canValid:
       self.events.add_from_msg(CS.events)
@@ -596,8 +608,13 @@ class Controls:
                    (not standstill or self.joystick_mode) and self.sm['frogpilotPlan'].lateralCheck
     CC.longActive = self.enabled and not self.events.contains(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
 
+    if self.joystick_mode:
+      CC.latActive = True
+
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
+
+    # print('Latactive:',CC.latActive)
 
     # Enable blinkers while lane changing
     if model_v2.meta.laneChangeState != LaneChangeState.off:
@@ -654,8 +671,9 @@ class Controls:
 
         if CC.latActive:
           steer = clip(joystick_axes[1], -1, 1)
+          # print(steer)
           # max angle is 45 for angle-based cars, max curvature is 0.02
-          actuators.steer, actuators.steeringAngleDeg, actuators.curvature = steer, steer * 90., steer * -0.02
+          actuators.steer, actuators.steeringAngleDeg, actuators.curvature = steer, steer * 190., steer * -0.02
 
         lac_log.active = self.active
         lac_log.steeringAngleDeg = CS.steeringAngleDeg

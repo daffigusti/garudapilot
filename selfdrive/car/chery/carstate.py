@@ -40,6 +40,9 @@ class CarState(CarStateBase):
     self.prev_lkas_enabled = False
     self.mainEnabled = False
     self.last_change_time = 0.0
+    self.prev_lead_front = 0
+    self.vehicle_move = False
+
 
     # Detect if servo stop responding to steering command.
     self.cruiseState_enabled_prev = False
@@ -182,8 +185,18 @@ class CarState(CarStateBase):
     # ret.cruiseState.available = self.mainEnabled or cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0
     ret.cruiseState.enabled = cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0 or cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
     # ret.cruiseState.enabled= self.mainEnabled
+    self.lead_front  = (cam_cp.vl["LEAD_FRONT"]["LEAD_DISTANCE"]) if (cam_cp.vl["LEAD_FRONT"]["VALID_SIGNAL"] == 1)  else 0
 
     self.needResume = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
+
+    if self.lead_front > self.prev_lead_front:
+      self.vehicle_move = True
+      print('Vehicle move')
+    else:
+      self.vehicle_move = False
+
+    self.prev_lead_front = self.lead_front
+
     ret.cruiseState.speed = cam_cp.vl["SETTING"]["CC_SPEED"]
     # ret.cruiseState.enabled = cam_cp.vl["LKAS_STATE"]["STATE"] != 0
     self.cruise_decreased_previously = self.cruise_decreased
@@ -231,6 +244,7 @@ class CarState(CarStateBase):
       ("LKAS_CAM_CMD_345", 50),
       ("LKAS_STATE", 20),
       ("SETTING", 20),
+      ("LEAD_FRONT", 20),
     ]
 
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus(CP).camera)

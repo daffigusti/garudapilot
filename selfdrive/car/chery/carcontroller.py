@@ -110,7 +110,7 @@ class CarController:
     if  (self.frame  % self.params.STEER_STEP) == 0:
       if CC.latActive and not self.steerDisableTemp:
         apply_angle = apply_std_steer_angle_limits(actuators.steeringAngleDeg, self.apply_angle_last, CS.out.vEgo, CarControllerParams)
-        print('Apply angle:',apply_angle)
+        # print('Apply angle:',apply_angle)
         # apply_steer_req = CC.latActive and not CS.out.standstill
         apply_steer_req = CC.latActive
       else:

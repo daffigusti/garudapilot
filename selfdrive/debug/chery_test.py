@@ -137,7 +137,7 @@ def get_vin(logcan, sendcan, buses, timeout=0.1, retry=2, debug=False):
 
 def getSoc(logcan, sendcan, buses, timeout=0.1, retry=2, debug=False):
   # addr = 0x7e0
-
+  print('Get SOC Value')
   OBD_VIN_REQUEST = b'\x22\xF1\x90'
   OBD_VIN_RESPONSE = b'\x22\x40\xF190'
   uds_request = bytearray([0x22, 0xF1, 0x90])

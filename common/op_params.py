@@ -25,6 +25,7 @@ PARAMS_DIR = os.path.join(BASEDIR, 'community', 'params')
 IMPORTED_PATH = os.path.join(PARAMS_DIR, '.imported')
 OLD_PARAMS_FILE = os.path.join(BASEDIR, 'op_params.json')
 
+print ('opParams: Using {} as base directory'.format(PARAMS_DIR))
 
 class Param:
   def __init__(self,

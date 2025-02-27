@@ -202,10 +202,13 @@ class Car:
     if self.sm.all_alive(['carControl']):
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(time.monotonic() * 1e9)
-      self.last_actuators_output, can_sends = self.CI.apply(CC, now_nanos, self.frogpilot_toggles)
+      self.last_actuators_output, can_sends = self.CI.apply(CC, now_nanos,self.sm['frogpilotPlan'].experimentalMode, self.frogpilot_toggles)
       self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
 
       self.CC_prev = CC
+
+  def getCheryEvData(self, enable, speed):
+    log_data(self.can_sock, self.pm.sock['sendcan'], enable, speed)
 
   def step(self):
     CS, FPCS = self.state_update()
@@ -213,6 +216,10 @@ class Car:
     self.update_events(CS)
 
     self.state_publish(CS, FPCS)
+
+    # Custom for chery to get data from OBD2, not working when using thread
+    if self.sm.frame % int(10. / DT_CTRL) == 0:
+      self.getCheryEvData(CS.cruiseState.enabled, CS.vEgoCluster)
 
     initialized = (not any(e.name == EventName.controlsInitializing for e in self.sm['onroadEvents']) and
                    self.sm.seen['onroadEvents'])

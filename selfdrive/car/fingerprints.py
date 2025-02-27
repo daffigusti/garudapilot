@@ -12,6 +12,8 @@ from openpilot.selfdrive.car.subaru.values import CAR as SUBARU
 from openpilot.selfdrive.car.tesla.values import CAR as TESLA
 from openpilot.selfdrive.car.toyota.values import CAR as TOYOTA
 from openpilot.selfdrive.car.volkswagen.values import CAR as VW
+from openpilot.selfdrive.car.wuling.values import CAR as WULING
+from openpilot.selfdrive.car.chery.values import CAR as CHERY
 
 FW_VERSIONS = get_interface_attr('FW_VERSIONS', combine_brands=True, ignore_none=True)
 _FINGERPRINTS = get_interface_attr('FINGERPRINTS', combine_brands=True, ignore_none=True)
@@ -342,6 +344,8 @@ MIGRATION = {
   "SKODA SCALA 1ST GEN": VW.SKODA_KAMIQ_MK1,
   "SKODA_SCALA_MK1": VW.SKODA_KAMIQ_MK1,
   "SKODA SUPERB 3RD GEN": VW.SKODA_SUPERB_MK3,
+  "WULING ALMAZ RS PRO 2022": WULING.ALMAS_RS_PRO,
+  "CHERY OMODA E5": CHERY.CHERY_OMODA_E5,
 
   "mock": MOCK.MOCK,
 }

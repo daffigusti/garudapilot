@@ -32,7 +32,8 @@ QStringList getCarNames(const QString &carMake, QMap<QString, QString> &carModel
     {"subaru", "subaru"},
     {"tesla", "tesla"},
     {"toyota", "toyota"},
-    {"volkswagen", "volkswagen"}
+    {"volkswagen", "volkswagen"},
+    {"chery", "chery"},
   };
 
   QStringList carNameList;
@@ -94,11 +95,11 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(FrogPilotSettingsWindow *parent) 
   FrogPilotListWidget *settingsList = new FrogPilotListWidget(this);
 
   QStringList makes = {
-    "Acura", "Audi", "Buick", "Cadillac", "Chevrolet", "Chrysler",
+    "Acura", "Audi", "Buick", "Cadillac", "Chery", "Chevrolet", "Chrysler",
     "CUPRA", "Dodge", "Ford", "Genesis", "GMC", "Holden", "Honda",
     "Hyundai", "Jeep", "Kia", "Lexus", "Lincoln", "MAN", "Mazda",
     "Nissan", "Ram", "SEAT", "Škoda", "Subaru", "Tesla", "Toyota",
-    "Volkswagen"
+    "Volkswagen", "Wuling"
   };
 
   ButtonControl *selectMakeButton = new ButtonControl(tr("Select Make"), tr("SELECT"));

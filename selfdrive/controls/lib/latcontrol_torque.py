@@ -40,11 +40,29 @@ class LatControlTorque(LatControl):
     self.nnff_loaded = self.nnff.lat_torque_nn_model != None
 
   def update_live_torque_params(self, latAccelFactor, latAccelOffset, friction):
-    self.torque_params.latAccelFactor = latAccelFactor
-    self.torque_params.latAccelOffset = latAccelOffset
-    self.torque_params.friction = friction
+    if not self.tune_torque_param:
+       self.torque_params.friction = friction
+       self.torque_params.latAccelFactor = latAccelFactor
+       self.torque_params.latAccelOffset = latAccelOffset
+      #  if self.mpc_frame % 300 == 0:
+      #    print("torque_params Ori.friction : %d", self.torque_params.friction)
+      #    print("torque_params Ori.latAccelFactor : %d", self.torque_params.latAccelFactor)
 
-  def update(self, active, CS, VM, params, steer_limited, desired_curvature, llk, model_data=None, frogpilot_toggles=None):
+    else:
+      self.torque_params.friction = self.friction
+      self.torque_params.latAccelFactor = self.lat_accel
+      self.torque_params.latAccelOffset = latAccelOffset
+
+
+  def update(self, active, CS, VM, params, steer_limited, desired_curvature, llk, model_data=None):
+
+    self.lt_timer += 1
+    if self.lt_timer > 100:
+      self.lt_timer = 0
+      self.live_tune_enabled = self._op_params.get("LiveTuneTorque")
+    if self.live_tune_enabled:
+      self.live_tune()
+
     pid_log = log.ControlsState.LateralTorqueState.new_message()
     if not active:
       output_torque = 0.0

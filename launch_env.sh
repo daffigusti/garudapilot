@@ -10,6 +10,9 @@ if [ -z "$AGNOS_VERSION" ]; then
   export AGNOS_VERSION="10.1"
 fi
 
+
 export STAGING_ROOT="/data/safe_staging"
 
 eval "$(/data/openpilot/frogpilot/system/environment_variables)"
+export FINGERPRINT="CHERY_OMODA_E5"
+# export ZMQ=1

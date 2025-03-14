@@ -85,3 +85,4 @@ poetry.toml
 Pipfile
 
 .vscode
+.qodo

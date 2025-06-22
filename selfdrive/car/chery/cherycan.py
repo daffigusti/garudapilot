@@ -92,8 +92,8 @@ def create_steering_control_lkas(packer, bus: int, apply_steer, frame, lkas_enab
 
   # print("Lkas:",lkas)
   # print("Send valud:",values)
-  if lkas_enable:
-    print("Applly Steer:",values['CMD'])
+  # if lkas_enable:
+    # print("Applly Steer:",values['CMD'])
 
   # return to stock values if not enable
   if not lkas_enable:

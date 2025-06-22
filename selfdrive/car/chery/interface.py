@@ -20,15 +20,8 @@ EventName = car.CarEvent.EventName
 CRUISE_OVERRIDE_SPEED_MIN = 5 * CV.KPH_TO_MS
 
 class CarInterface(CarInterfaceBase):
-  def __init__(self, CP, CarController, CarState):
-    super().__init__(CP, CarController, CarState)
-
-    self.dp_cruise_speed = 0. # km/h
-    self.dp_override_speed_last = 0. # km/h
-    self.dp_override_speed = 0. # m/s
-
   @staticmethod
-  def _get_params(ret, candidate, fingerprint, car_fw, disable_openpilot_long, experimental_long, docs):
+  def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs, frogpilot_toggles):
     ret.carName = "chery"
 
     CAN = CanBus(fingerprint=fingerprint)
@@ -46,9 +39,7 @@ class CarInterface(CarInterfaceBase):
 
     ret.pcmCruise = not ret.openpilotLongitudinalControl
 
-    ret.wheelbase = 2.63
-    ret.tireStiffnessFactor = 0.8
-    ret.centerToFront = ret.wheelbase * 0.4
+    ret.centerToFront = ret.wheelbase * 0.44
 
     ret.steerLimitTimer = 1.0
     ret.steerActuatorDelay = 0.2
@@ -57,10 +48,10 @@ class CarInterface(CarInterfaceBase):
     ret.transmissionType = TransmissionType.automatic
 
     ret.stopAccel = CarControllerParams.ACCEL_MIN
-    ret.stoppingDecelRate = 0.1
+    ret.stoppingDecelRate = 0.3
     ret.vEgoStarting = 0.1
-    ret.vEgoStopping = 0.25
-    # ret.longitudinalActuatorDelay = 0.5 # s
+    ret.vEgoStopping = 0.1
+    ret.longitudinalActuatorDelay = 0.05 # s
     # ret.startAccel = 1.0
 
     # ret.longitudinalTuning.kiBP = [0., 35.]
@@ -73,16 +64,14 @@ class CarInterface(CarInterfaceBase):
     # ret.longitudinalTuning.kpV = [0.0]
     # ret.longitudinalTuning.kiV = [0.0]
 
-    ret.longitudinalTuning.kpBP = [0.]
-    ret.longitudinalTuning.kpV = [0.1]
-    ret.longitudinalTuning.kiV = [0.]
-    ret.longitudinalTuning.deadzoneBP = [0.]
-    ret.longitudinalTuning.deadzoneV = [0.]
+    ret.longitudinalTuning.kiBP = [0., 5., 35.]
+    ret.longitudinalTuning.kiV = [0.5, 0.4, 0.2]
 
     ret.enableBsm = 0x4B1 in fingerprint[CAN.main] and 0x4B3 in fingerprint[CAN.main]
 
     ret.minEnableSpeed = -1
     ret.minSteerSpeed = -1
+    ret.autoResumeSng = ret.minEnableSpeed == -1.
 
     return ret
 

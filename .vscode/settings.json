@@ -65,6 +65,9 @@
     "memory": "cpp",
     "functional": "cpp",
     "safety_chery.h": "c",
-    "safety_hyundai_canfd.h": "c"
+    "safety_hyundai_canfd.h": "c",
+    "cmath": "cpp",
+    "complex": "cpp",
+    "thread": "cpp"
   }
 }

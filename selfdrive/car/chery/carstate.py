@@ -22,8 +22,8 @@ DEADBAND = 0.2
 DIRECTION_HOLD_TIME = 1.0  # 1 second hold time
 
 class CarState(CarStateBase):
-  def __init__(self, CP):
-    super().__init__(CP)
+  def __init__(self, CP, FPCP):
+    super().__init__(CP, FPCP)
     self.frame = 0
     self.angleSensorLast = 0
     self.direction= 1
@@ -76,10 +76,10 @@ class CarState(CarStateBase):
       pt_cp.vl["WHEEL_SPEED_REAR"]["WHEEL_SPEED_RL"],
     )
 
-    ret.vEgoRaw = mean([ret.wheelSpeeds.fl, ret.wheelSpeeds.fr, ret.wheelSpeeds.rl, ret.wheelSpeeds.rr])  * self.params.HUD_MULTIPLIER
+    ret.vEgoRaw = (ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 4.
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.vEgoCluster = ret.vEgo
-    ret.standstill = ret.vEgoRaw < 0.1
+    ret.standstill = ret.vEgoRaw < 1e-3
 
     self.acc_md = copy.copy(cam_cp.vl["ACC_CMD"])
     self.lkas = copy.copy(pt_cp.vl["LKAS"])
@@ -112,7 +112,7 @@ class CarState(CarStateBase):
     ret.rightBlinker = pt_cp.vl["BCM_SIGNAL_1"]["SIGN_SIGNAL"] == 1
 
     # steering wheel
-    self.agleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]/10
+    self.agleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]
 
     # now = time.time()
     # angle_change = self.agleSensor - self.angleSensorLast
@@ -189,7 +189,7 @@ class CarState(CarStateBase):
 
     self.needResume = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
 
-    if self.lead_front > self.prev_lead_front:
+    if self.lead_front > self.prev_lead_front and ret.standstill:
       self.vehicle_move = True
       print('Vehicle move')
     else:
@@ -237,7 +237,7 @@ class CarState(CarStateBase):
     return ret,fp_ret
 
   @staticmethod
-  def get_cam_can_parser(CP):
+  def get_cam_can_parser(CP, FPCP):
     messages = [
       ("ACC_CMD", 50),
       ("ACC", 50),
@@ -250,7 +250,7 @@ class CarState(CarStateBase):
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus(CP).camera)
 
   @staticmethod
-  def get_can_parser(CP):
+  def get_can_parser(CP, FPCP):
 
     messages = [
        ("STEER_ANGLE_SENSOR", 100),

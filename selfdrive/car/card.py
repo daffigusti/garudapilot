@@ -6,6 +6,7 @@ import cereal.messaging as messaging
 
 from cereal import car, custom
 
+from openpilot.selfdrive.debug.chery_test import log_data
 from panda import ALTERNATIVE_EXPERIENCE
 
 from openpilot.common.params import Params
@@ -218,8 +219,8 @@ class Car:
     self.state_publish(CS, FPCS)
 
     # Custom for chery to get data from OBD2, not working when using thread
-    if self.sm.frame % int(10. / DT_CTRL) == 0:
-      self.getCheryEvData(CS.cruiseState.enabled, CS.vEgoCluster)
+    # if self.sm.frame % int(10. / DT_CTRL) == 0:
+    #   self.getCheryEvData(CS.cruiseState.enabled, CS.vEgoCluster)
 
     initialized = (not any(e.name == EventName.controlsInitializing for e in self.sm['onroadEvents']) and
                    self.sm.seen['onroadEvents'])

@@ -28,7 +28,7 @@ class CarInterface(CarInterfaceBase):
     self.dp_override_speed = 0. # m/s
 
   @staticmethod
-  def _get_params(ret, candidate, fingerprint, car_fw, disable_openpilot_long, experimental_long, docs):
+  def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs, frogpilot_toggles):
     ret.carName = "chery"
 
     CAN = CanBus(fingerprint=fingerprint)
@@ -73,11 +73,8 @@ class CarInterface(CarInterfaceBase):
     # ret.longitudinalTuning.kpV = [0.0]
     # ret.longitudinalTuning.kiV = [0.0]
 
-    ret.longitudinalTuning.kpBP = [0.]
     ret.longitudinalTuning.kpV = [0.1]
     ret.longitudinalTuning.kiV = [0.]
-    ret.longitudinalTuning.deadzoneBP = [0.]
-    ret.longitudinalTuning.deadzoneV = [0.]
 
     ret.enableBsm = 0x4B1 in fingerprint[CAN.main] and 0x4B3 in fingerprint[CAN.main]
 

@@ -17,7 +17,7 @@ def calculate_crc(data, poly, xor_output):
       crc &= 0xFF
   return (crc ^ xor_output)
 
-def create_longitudinal_control(packer, bus, acc, frame, long_active: bool, gas: float, accel: float, stopping: bool, full_stop : bool):
+def create_longitudinal_control(packer, bus, acc, frame, long_active: bool, gas: float, accel: float, stopping: bool, full_stop : bool, resume : bool):
   throtle = gas if long_active else -24
   # if full stop cmd = 400, acc_state = 2, and stopped = 1
   acc_state = 2 if full_stop else 3 if long_active else acc['ACC_STATE']
@@ -25,7 +25,7 @@ def create_longitudinal_control(packer, bus, acc, frame, long_active: bool, gas:
       "CMD": 400 if full_stop else throtle,
       "ACCEL_ON": 1 if throtle>= 0 else 0,
       "ACC_STATE": acc_state, # 1 not available, 2 available, 3 active
-      "STOPPED": 1 if full_stop else acc['STOPPED'],
+      "STOPPED": 1 if full_stop else 0 if long_active else  acc['STOPPED'],
       "ACC_STATE_2": acc['ACC_STATE_2'],
       "NEW_SIGNAL_12": acc['NEW_SIGNAL_12'],
       "NEW_SIGNAL_9": acc['NEW_SIGNAL_9'],
@@ -40,7 +40,7 @@ def create_longitudinal_control(packer, bus, acc, frame, long_active: bool, gas:
       "NEW_SIGNAL_3": acc['NEW_SIGNAL_3'],
       "NEW_SIGNAL_4": acc['NEW_SIGNAL_4'],
       "NEW_SIGNAL_11": acc['NEW_SIGNAL_11'],
-      "GAS_PRESSED": acc['GAS_PRESSED'],
+      "GAS_PRESSED": 1 if resume else 0,  # gas pressed
       "COUNTER": (frame) % 0x0f,
       # "STEER_REQUEST": steer_req,
   }
@@ -65,7 +65,7 @@ def create_longitudinal_controlBypass(packer, bus, acc, frame):
 
 def create_steering_control_lkas(packer, bus: int, apply_steer, frame, lkas_enable, lkas):
   # idx = (apply_steer) % 1000
-  apply_steer = int((apply_steer*10)-389)
+  apply_steer = int((apply_steer*10)-392)
   if apply_steer>= 0 and apply_steer <=2 :
     apply_steer = 2
   values = {

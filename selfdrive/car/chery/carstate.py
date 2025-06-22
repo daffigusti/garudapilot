@@ -22,8 +22,8 @@ DEADBAND = 0.2
 DIRECTION_HOLD_TIME = 1.0  # 1 second hold time
 
 class CarState(CarStateBase):
-  def __init__(self, CP):
-    super().__init__(CP)
+  def __init__(self, CP, FPCP):
+    super().__init__(CP, FPCP)
     self.frame = 0
     self.angleSensorLast = 0
     self.direction= 1
@@ -237,7 +237,7 @@ class CarState(CarStateBase):
     return ret,fp_ret
 
   @staticmethod
-  def get_cam_can_parser(CP):
+  def get_cam_can_parser(CP, FPCP):
     messages = [
       ("ACC_CMD", 50),
       ("ACC", 50),
@@ -250,7 +250,7 @@ class CarState(CarStateBase):
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus(CP).camera)
 
   @staticmethod
-  def get_can_parser(CP):
+  def get_can_parser(CP, FPCP):
 
     messages = [
        ("STEER_ANGLE_SENSOR", 100),

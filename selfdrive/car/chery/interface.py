@@ -20,13 +20,6 @@ EventName = car.CarEvent.EventName
 CRUISE_OVERRIDE_SPEED_MIN = 5 * CV.KPH_TO_MS
 
 class CarInterface(CarInterfaceBase):
-  def __init__(self, CP, CarController, CarState):
-    super().__init__(CP, CarController, CarState)
-
-    self.dp_cruise_speed = 0. # km/h
-    self.dp_override_speed_last = 0. # km/h
-    self.dp_override_speed = 0. # m/s
-
   @staticmethod
   def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs, frogpilot_toggles):
     ret.carName = "chery"

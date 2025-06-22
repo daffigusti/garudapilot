@@ -81,7 +81,7 @@ class CarController:
     # hud_control = CC.hudControl
     # hud_alert = hud_control.visualAlert
     # hud_v_cruise = hud_control.setSpeed
-
+    experimentalMode=True
     can_sends = []
     resume = True
     if CC.cruiseControl.cancel and (self.frame % self.params.BUTTONS_STEP) == 0:

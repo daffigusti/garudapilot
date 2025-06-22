@@ -27,7 +27,7 @@ class CarControllerParams:
   STEER_DELTA_UP = 2
   STEER_DELTA_DOWN = 3
 
-  STEER_THRESHOLD = 50
+  STEER_THRESHOLD = 70
   STEER_DRIVER_ALLOWANCE = 1.0  # Driver intervention threshold, Nm
 
   # Temporary steer fault timeout
@@ -58,8 +58,8 @@ class CarControllerParams:
   # ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.3, 0.085])
   # ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.325, 0.09])
 
-  ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.4, 0.095])
-  ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.455, 0.1])
+  ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.4, 0.1])
+  ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.455, 0.2])
 
   ACCEL_MAX = 2.0               # m/s^2 max acceleration
   ACCEL_MAX_PLUS = 4.0          # m/s^2 max acceleration
@@ -67,8 +67,8 @@ class CarControllerParams:
   MIN_GAS = -24
   INACTIVE_GAS = -24
 
-  GAS_MAX = 512
-  GAS_MIN = -400
+  GAS_MAX = 511
+  GAS_MIN = -511
 
   ACCEL_LOOKUP_BP = [ACCEL_MIN, 0, ACCEL_MAX]
   ACCEL_LOOKUP_V = [GAS_MIN, -24, GAS_MAX]

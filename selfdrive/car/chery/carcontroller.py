@@ -83,14 +83,15 @@ class CarController:
     # hud_v_cruise = hud_control.setSpeed
 
     can_sends = []
-
+    resume = True
     if CC.cruiseControl.cancel and (self.frame % self.params.BUTTONS_STEP) == 0:
       # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera,self.frame, CS.buttons_stock_values, cancel=True))
       print('Send Cancel')
 
-    elif (CC.cruiseControl.resume or CS.needResume) and (self.frame % self.params.BUTTONS_STEP) == 0:
-      can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame, CS.buttons_stock_values, resume=True))
+    elif (CC.cruiseControl.resume) and (self.frame % self.params.BUTTONS_STEP) == 0:
+      # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame, CS.buttons_stock_values, resume=True))
       print('Send Resume')
+      resume = True
     else:
       self.brake_counter = 0
 
@@ -134,19 +135,24 @@ class CarController:
       full_stop = CC.longActive and CS.out.standstill
       accel = int(round(interp(actuators.accel, self.params.ACCEL_LOOKUP_BP, self.params.ACCEL_LOOKUP_V)))
       gas = accel
+
+      if gas > 0 and resume:
+        full_stop = 0
+
       if not CC.longActive:
         gas = CarControllerParams.INACTIVE_GAS
       else:
         print('Actuator accel : ',actuators.accel)
       stopping = CC.actuators.longControlState == LongCtrlState.stopping
       if experimentalMode:
-        can_sends.append(cherycan.create_longitudinal_control(self.packer_pt, self.CAN.main, CS.acc_md, self.frame, CC.longActive, gas, accel, stopping, full_stop))
+        can_sends.append(cherycan.create_longitudinal_control(self.packer_pt, self.CAN.main, CS.acc_md, self.frame, CC.longActive, gas, accel,
+                                                              stopping, full_stop, resume))
       else:
         can_sends.append(cherycan.create_longitudinal_controlBypass(self.packer_pt, self.CAN.main, CS.acc_md, self.frame))
 
     if self.frame % 20 == 0:
-      ldw = CC.hudControl.visualAlert == VisualAlert.ldw
-      steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
+      # ldw = CC.hudControl.visualAlert == VisualAlert.ldw
+      # steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
       can_sends.append(cherycan.create_lkas_state_hud(self.packer_pt,self.CAN.main, self.frame, CS.lkas_state, apply_steer_req))
 
     new_actuators = CC.actuators.as_builder()

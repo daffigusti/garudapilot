@@ -76,10 +76,10 @@ class CarState(CarStateBase):
       pt_cp.vl["WHEEL_SPEED_REAR"]["WHEEL_SPEED_RL"],
     )
 
-    ret.vEgoRaw = mean([ret.wheelSpeeds.fl, ret.wheelSpeeds.fr, ret.wheelSpeeds.rl, ret.wheelSpeeds.rr])  * self.params.HUD_MULTIPLIER
+    ret.vEgoRaw = (ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 4.
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.vEgoCluster = ret.vEgo
-    ret.standstill = ret.vEgoRaw < 0.1
+    ret.standstill = ret.vEgoRaw < 1e-3
 
     self.acc_md = copy.copy(cam_cp.vl["ACC_CMD"])
     self.lkas = copy.copy(pt_cp.vl["LKAS"])
@@ -112,7 +112,7 @@ class CarState(CarStateBase):
     ret.rightBlinker = pt_cp.vl["BCM_SIGNAL_1"]["SIGN_SIGNAL"] == 1
 
     # steering wheel
-    self.agleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]/10
+    self.agleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]
 
     # now = time.time()
     # angle_change = self.agleSensor - self.angleSensorLast

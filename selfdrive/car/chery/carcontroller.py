@@ -81,9 +81,9 @@ class CarController:
     # hud_control = CC.hudControl
     # hud_alert = hud_control.visualAlert
     # hud_v_cruise = hud_control.setSpeed
-    experimentalMode=True
+    # experimentalMode=True
     can_sends = []
-    resume = True
+    resume = False
     if CC.cruiseControl.cancel and (self.frame % self.params.BUTTONS_STEP) == 0:
       # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera,self.frame, CS.buttons_stock_values, cancel=True))
       print('Send Cancel')

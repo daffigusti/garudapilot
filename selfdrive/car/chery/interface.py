@@ -39,9 +39,7 @@ class CarInterface(CarInterfaceBase):
 
     ret.pcmCruise = not ret.openpilotLongitudinalControl
 
-    ret.wheelbase = 2.63
-    ret.tireStiffnessFactor = 0.8
-    ret.centerToFront = ret.wheelbase * 0.4
+    ret.centerToFront = ret.wheelbase * 0.44
 
     ret.steerLimitTimer = 1.0
     ret.steerActuatorDelay = 0.2
@@ -50,10 +48,10 @@ class CarInterface(CarInterfaceBase):
     ret.transmissionType = TransmissionType.automatic
 
     ret.stopAccel = CarControllerParams.ACCEL_MIN
-    ret.stoppingDecelRate = 0.1
+    ret.stoppingDecelRate = 0.3
     ret.vEgoStarting = 0.1
-    ret.vEgoStopping = 0.25
-    # ret.longitudinalActuatorDelay = 0.5 # s
+    ret.vEgoStopping = 0.1
+    ret.longitudinalActuatorDelay = 0.05 # s
     # ret.startAccel = 1.0
 
     # ret.longitudinalTuning.kiBP = [0., 35.]
@@ -66,13 +64,14 @@ class CarInterface(CarInterfaceBase):
     # ret.longitudinalTuning.kpV = [0.0]
     # ret.longitudinalTuning.kiV = [0.0]
 
-    ret.longitudinalTuning.kpV = [0.1]
-    ret.longitudinalTuning.kiV = [0.]
+    ret.longitudinalTuning.kiBP = [0., 5., 35.]
+    ret.longitudinalTuning.kiV = [0.5, 0.4, 0.2]
 
     ret.enableBsm = 0x4B1 in fingerprint[CAN.main] and 0x4B3 in fingerprint[CAN.main]
 
     ret.minEnableSpeed = -1
     ret.minSteerSpeed = -1
+    ret.autoResumeSng = ret.minEnableSpeed == -1.
 
     return ret
 

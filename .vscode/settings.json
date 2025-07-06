@@ -22,6 +22,25 @@
     "selfdrive/**",
     "system/**",
     "third_party/**",
-    "tools/**",
-  ]
+    "tools/**"
+  ],
+  "files.associations": {
+    "*.embeddedhtml": "html",
+    "__locale": "c",
+    "print": "c",
+    "safety_declarations.h": "c",
+    "__verbose_abort": "c",
+    "cstdio": "c",
+    "__tree": "c",
+    "bitset": "c",
+    "set": "c",
+    "common.h": "c",
+    "logger.h": "c",
+    "common_dbc.h": "c",
+    "fake_stm.h": "c",
+    "utils.h": "c",
+    "stdio.h": "c",
+    "safety.h": "c"
+  },
+  "python.languageServer": "None"
 }

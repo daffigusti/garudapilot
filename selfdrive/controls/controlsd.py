@@ -3,6 +3,7 @@ import os
 import math
 import time
 import threading
+from collections import defaultdict, deque
 from typing import SupportsFloat
 
 import cereal.messaging as messaging
@@ -41,6 +42,11 @@ SOFT_DISABLE_TIME = 3  # seconds
 LDW_MIN_SPEED = 31 * CV.MPH_TO_MS
 LANE_DEPARTURE_THRESHOLD = 0.1
 CAMERA_OFFSET = 0.04
+LOW_MEMORY_HISTORY_SECONDS = 180
+LOW_MEMORY_DEVICE_SAMPLE_HZ = 2
+LOW_MEMORY_PROCLOG_SAMPLE_HZ = 0.5
+LOW_MEMORY_DEVICE_HISTORY_SAMPLES = int(LOW_MEMORY_HISTORY_SECONDS * LOW_MEMORY_DEVICE_SAMPLE_HZ)
+LOW_MEMORY_PROC_HISTORY_SAMPLES = int(LOW_MEMORY_HISTORY_SECONDS * LOW_MEMORY_PROCLOG_SAMPLE_HZ)
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
@@ -107,7 +113,7 @@ class Controls:
       ignore += ['roadCameraState', 'wideRoadCameraState']
     self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
                                    'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'liveLocationKalman',
-                                   'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters', 'liveDelay',
+                                   'managerState', 'liveParameters', 'procLog', 'radarState', 'liveTorqueParameters', 'liveDelay',
                                    'testJoystick', 'frogpilotCarState', 'frogpilotPlan'] + self.camera_packets + self.sensor_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore+['radarState', 'testJoystick'], ignore_valid=['testJoystick', ],
                                   frequency=int(1/DT_CTRL))
@@ -198,6 +204,8 @@ class Controls:
     self.display_timer = 0
 
     self.frogpilot_events_prev = []
+    self.low_memory_device_history = deque(maxlen=LOW_MEMORY_DEVICE_HISTORY_SAMPLES)
+    self.low_memory_proc_history = deque(maxlen=LOW_MEMORY_PROC_HISTORY_SAMPLES)
 
     self.event_names_to_clear = set()
 
@@ -224,11 +232,279 @@ class Controls:
   def contains_event_type(self, *event_types):
     return any(self.events.contains(event_type) or self.frogpilot_events.contains(event_type) for event_type in event_types)
 
+  @staticmethod
+  def _proc_label(proc) -> str:
+    if len(proc.cmdline) > 0:
+      return str(proc.cmdline[0])
+    if len(proc.exe) > 0:
+      return str(proc.exe)
+    return str(proc.name)
+
+  @staticmethod
+  def _enum_to_int(value) -> int:
+    raw_value = getattr(value, "raw", value)
+    return int(raw_value)
+
+  def _summarize_process(self, proc, pid_to_proc: dict[int, object] | None = None) -> dict[str, object]:
+    parent_chain = []
+    if pid_to_proc is not None:
+      visited: set[int] = set()
+      current_ppid = int(proc.ppid)
+      while current_ppid in pid_to_proc and current_ppid not in visited and len(parent_chain) < 6:
+        visited.add(current_ppid)
+        parent = pid_to_proc[current_ppid]
+        parent_chain.append({
+          "pid": int(parent.pid),
+          "label": self._proc_label(parent),
+        })
+        current_ppid = int(parent.ppid)
+
+    return {
+      "pid": int(proc.pid),
+      "ppid": int(proc.ppid),
+      "label": self._proc_label(proc),
+      "name": str(proc.name),
+      "exe": str(proc.exe),
+      "rss_mb": round(float(proc.memRss) / 1e6, 2),
+      "vms_mb": round(float(proc.memVms) / 1e6, 2),
+      "threads": int(proc.numThreads),
+      "cpu_user_s": round(float(proc.cpuUser), 3),
+      "cpu_system_s": round(float(proc.cpuSystem), 3),
+      "cpu_children_user_s": round(float(proc.cpuChildrenUser), 3),
+      "cpu_children_system_s": round(float(proc.cpuChildrenSystem), 3),
+      "parent_chain": parent_chain,
+    }
+
+  def _summarize_proc_log_history(self, proc_log, mono_time: int) -> dict[str, object]:
+    top_processes = sorted(proc_log.procs, key=lambda proc: proc.memRss, reverse=True)[:8]
+    mem = proc_log.mem
+    rss_by_label: dict[str, int] = defaultdict(int)
+    for proc in proc_log.procs:
+      rss_by_label[self._proc_label(proc)] += int(proc.memRss)
+
+    return {
+      "mono_time_s": round(mono_time / 1e9, 3),
+      "system_memory_mb": {
+        "total": round(float(mem.total) / 1e6, 1),
+        "available": round(float(mem.available) / 1e6, 1),
+        "free": round(float(mem.free) / 1e6, 1),
+        "buffers": round(float(mem.buffers) / 1e6, 1),
+        "cached": round(float(mem.cached) / 1e6, 1),
+        "active": round(float(mem.active) / 1e6, 1),
+        "inactive": round(float(mem.inactive) / 1e6, 1),
+        "shared": round(float(mem.shared) / 1e6, 1),
+      },
+      "top_processes": [
+        {
+          "pid": int(proc.pid),
+          "label": self._proc_label(proc),
+          "rss_mb": round(float(proc.memRss) / 1e6, 2),
+        }
+        for proc in top_processes
+      ],
+      "rss_by_label": dict(rss_by_label),
+    }
+
+  def _compute_process_growth(self) -> list[dict[str, object]]:
+    if len(self.low_memory_proc_history) < 2:
+      return []
+
+    first_sample = self.low_memory_proc_history[0]
+    latest_sample = self.low_memory_proc_history[-1]
+    first_rss = first_sample.get("rss_by_label", {})
+    latest_rss = latest_sample.get("rss_by_label", {})
+
+    peak_by_label: dict[str, tuple[int, float]] = {}
+    for sample in self.low_memory_proc_history:
+      sample_time = float(sample.get("mono_time_s", 0.0))
+      for label, rss_bytes in sample.get("rss_by_label", {}).items():
+        previous_peak = peak_by_label.get(label)
+        if previous_peak is None or rss_bytes > previous_peak[0]:
+          peak_by_label[label] = (int(rss_bytes), sample_time)
+
+    process_growth = []
+    for label in set(first_rss) | set(latest_rss) | set(peak_by_label):
+      first_bytes = int(first_rss.get(label, 0))
+      latest_bytes = int(latest_rss.get(label, 0))
+      peak_bytes, peak_time = peak_by_label.get(label, (latest_bytes, float(latest_sample.get("mono_time_s", 0.0))))
+      delta_latest = latest_bytes - first_bytes
+      delta_peak = peak_bytes - first_bytes
+
+      if max(delta_latest, delta_peak) <= 0:
+        continue
+
+      process_growth.append({
+        "label": label,
+        "first_mb": round(float(first_bytes) / 1e6, 2),
+        "latest_mb": round(float(latest_bytes) / 1e6, 2),
+        "peak_mb": round(float(peak_bytes) / 1e6, 2),
+        "delta_latest_mb": round(float(delta_latest) / 1e6, 2),
+        "delta_peak_mb": round(float(delta_peak) / 1e6, 2),
+        "peak_at_s": round(float(peak_time), 3),
+      })
+
+    process_growth.sort(key=lambda entry: (entry["delta_peak_mb"], entry["delta_latest_mb"]), reverse=True)
+    return process_growth[:20]
+
+  def _record_low_memory_history(self) -> None:
+    if self.sm.updated['deviceState']:
+      device = self.sm['deviceState']
+      cpu_usage = list(device.cpuUsagePercent)
+      self.low_memory_device_history.append({
+        "mono_time_s": round(self.sm.logMonoTime['deviceState'] / 1e9, 3),
+        "memory_usage_percent": int(device.memoryUsagePercent),
+        "free_space_percent": round(float(device.freeSpacePercent), 2),
+        "gpu_usage_percent": int(device.gpuUsagePercent),
+        "avg_cpu_usage_percent": round(sum(cpu_usage) / len(cpu_usage), 2) if len(cpu_usage) > 0 else 0.0,
+        "thermal_status": self._enum_to_int(device.thermalStatus),
+        "max_temp_c": round(float(device.maxTempC), 2),
+        "network_metered": bool(device.networkMetered),
+        "started": bool(device.started),
+      })
+
+    if self.sm.updated['procLog']:
+      self.low_memory_proc_history.append(self._summarize_proc_log_history(self.sm['procLog'], self.sm.logMonoTime['procLog']))
+
+  def _compute_tree_rollups(self, pid_to_proc: dict[int, object]) -> list[dict[str, object]]:
+    children_by_ppid: dict[int, list[int]] = defaultdict(list)
+    direct_rss: dict[int, int] = {}
+
+    for pid, proc in pid_to_proc.items():
+      children_by_ppid[int(proc.ppid)].append(pid)
+      direct_rss[pid] = int(proc.memRss)
+
+    subtree_cache: dict[int, int] = {}
+
+    def subtree_rss(pid: int) -> int:
+      cached_value = subtree_cache.get(pid)
+      if cached_value is not None:
+        return cached_value
+
+      total_rss = direct_rss.get(pid, 0)
+      for child_pid in children_by_ppid.get(pid, []):
+        total_rss += subtree_rss(child_pid)
+      subtree_cache[pid] = total_rss
+      return total_rss
+
+    tree_rollups = []
+    for process in self.sm['managerState'].processes:
+      pid = int(process.pid)
+      if not process.running or pid == 0 or pid not in pid_to_proc:
+        continue
+
+      proc = pid_to_proc[pid]
+      child_pids = []
+      stack = list(children_by_ppid.get(pid, []))
+      while stack:
+        child_pid = stack.pop()
+        child_pids.append(child_pid)
+        stack.extend(children_by_ppid.get(child_pid, []))
+
+      tree_rollups.append({
+        "manager_name": str(process.name),
+        "pid": pid,
+        "label": self._proc_label(proc),
+        "direct_rss_mb": round(float(direct_rss.get(pid, 0)) / 1e6, 2),
+        "tree_rss_mb": round(float(subtree_rss(pid)) / 1e6, 2),
+        "child_count": len(child_pids),
+        "child_labels": [self._proc_label(pid_to_proc[child_pid]) for child_pid in child_pids[:8]],
+      })
+
+    tree_rollups.sort(key=lambda entry: entry["tree_rss_mb"], reverse=True)
+    return tree_rollups[:20]
+
+  def _build_low_memory_proc_snapshot(self) -> dict[str, object] | None:
+    if not self.sm.seen['procLog']:
+      return None
+
+    proc_log = self.sm['procLog']
+    pid_to_proc = {int(proc.pid): proc for proc in proc_log.procs}
+    top_processes = sorted(proc_log.procs, key=lambda proc: proc.memRss, reverse=True)[:15]
+
+    grouped_rss: dict[str, dict[str, object]] = {}
+    suspicious_terms = ("updated", "git", "git-lfs", "pack-objects", "controlsd", "camerad", "ui", "modeld", "loggerd")
+    suspicious_processes = []
+    for proc in proc_log.procs:
+      label = self._proc_label(proc)
+      group = grouped_rss.setdefault(label, {"label": label, "rss_bytes": 0, "count": 0, "pids": []})
+      group["rss_bytes"] += int(proc.memRss)
+      group["count"] += 1
+      group["pids"].append(int(proc.pid))
+
+      lowered = label.lower()
+      if any(term in lowered for term in suspicious_terms):
+        suspicious_processes.append(self._summarize_process(proc, pid_to_proc))
+
+    grouped_snapshot = sorted(grouped_rss.values(), key=lambda group: group["rss_bytes"], reverse=True)[:15]
+    for group in grouped_snapshot:
+      group["rss_mb"] = round(float(group.pop("rss_bytes")) / 1e6, 2)
+
+    mem = proc_log.mem
+    return {
+      "mono_time_s": round(self.sm.logMonoTime['procLog'] / 1e9, 3),
+      "meminfo_mb": {
+        "total": round(float(mem.total) / 1e6, 1),
+        "available": round(float(mem.available) / 1e6, 1),
+        "free": round(float(mem.free) / 1e6, 1),
+        "buffers": round(float(mem.buffers) / 1e6, 1),
+        "cached": round(float(mem.cached) / 1e6, 1),
+        "active": round(float(mem.active) / 1e6, 1),
+        "inactive": round(float(mem.inactive) / 1e6, 1),
+        "shared": round(float(mem.shared) / 1e6, 1),
+      },
+      "top_processes": [self._summarize_process(proc, pid_to_proc) for proc in top_processes],
+      "grouped_rss": grouped_snapshot,
+      "suspicious_processes": suspicious_processes[:15],
+      "tree_rollups": self._compute_tree_rollups(pid_to_proc),
+    }
+
+  def _build_low_memory_report(self) -> dict[str, object]:
+    device = self.sm['deviceState']
+    manager_processes = []
+    for process in self.sm['managerState'].processes:
+      manager_processes.append({
+        "name": str(process.name),
+        "pid": int(process.pid),
+        "running": bool(process.running),
+        "should_be_running": bool(process.shouldBeRunning),
+        "exit_code": int(process.exitCode),
+      })
+
+    updater_report = {
+      "state": self.params.get("UpdaterState", encoding="utf-8"),
+      "update_available": self.params.get_bool("UpdateAvailable"),
+      "fetch_available": self.params.get_bool("UpdaterFetchAvailable"),
+      "failed_count": self.params.get("UpdateFailedCount", encoding="utf-8"),
+      "last_exception": self.params.get("LastUpdateException", encoding="utf-8"),
+      "updated": self.params.get("Updated", encoding="utf-8"),
+      "install_date": self.params.get("InstallDate", encoding="utf-8"),
+    }
+
+    return {
+      "trigger": {
+        "frame": int(self.sm.frame),
+        "branch": self.branch,
+        "memory_usage_percent": int(device.memoryUsagePercent),
+        "free_space_percent": round(float(device.freeSpacePercent), 2),
+        "gpu_usage_percent": int(device.gpuUsagePercent),
+        "thermal_status": self._enum_to_int(device.thermalStatus),
+        "max_temp_c": round(float(device.maxTempC), 2),
+        "started": bool(device.started),
+      },
+      "recent_device_history": list(self.low_memory_device_history),
+      "recent_proc_history": list(self.low_memory_proc_history),
+      "process_growth": self._compute_process_growth(),
+      "current_proc_snapshot": self._build_low_memory_proc_snapshot(),
+      "manager_processes": manager_processes,
+      "updater": updater_report,
+    }
+
   def update_events(self, CS):
     """Compute onroadEvents from carState"""
 
     self.events.clear()
     self.frogpilot_events.clear()
+    self._record_low_memory_history()
 
     # Add joystick event, static on cars, dynamic on nonCars
     if self.joystick_mode:
@@ -273,7 +549,7 @@ class Controls:
     if self.sm['deviceState'].memoryUsagePercent > 90 and not SIMULATION:
       self.events.add(EventName.lowMemory)
       if not self.captured_memory_usage:
-        sentry.capture_memory_usage()
+        sentry.capture_memory_usage(self._build_low_memory_report())
         self.captured_memory_usage = True
 
     # TODO: enable this once loggerd CPU usage is more reasonable

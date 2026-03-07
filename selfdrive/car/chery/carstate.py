@@ -86,6 +86,7 @@ class CarState(CarStateBase):
     self.lkas_state = copy.copy(cam_cp.vl["LKAS_STATE"])
     self.setting = copy.copy(cam_cp.vl["SETTING"])
     self.lkas_cmd = copy.copy(cam_cp.vl["LKAS_CAM_CMD_345"])
+    self.acc_status = copy.copy(cam_cp.vl["ACC"])
 
     # print(self.setting)
 

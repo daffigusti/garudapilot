@@ -1,7 +1,7 @@
 import copy
 from cereal import car
-from common.numpy_fast import clip
-from selfdrive.car import make_can_msg
+from openpilot.common.numpy_fast import clip
+from openpilot.selfdrive.car import make_can_msg
 from openpilot.selfdrive.car.wuling.values import CruiseButtons
 
 VisualAlert = car.CarControl.HUDControl.VisualAlert

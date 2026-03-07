@@ -1,18 +1,25 @@
 // CAN msgs we care about
-#define ENGINE_DATA 0xc9
-#define LKAS_HUD 0x373
-#define STEERING_LKAS 0x225
-#define BRAKE_DATA 0x269
-#define GAS_DATA 0x191
-#define CRZ_BTN 0x1e1
-#define CRZ_CTRL 0x370
-#define ACC_CMD 0x260
-#define ACC_STS 0x263
+#define WULING_WHEEL_SPEED     0x348  // 840 EBCMWheelSpdFront
+#define WULING_STEERING_ANGLE  0x1E5  // 485 PSCMSteeringAngle
+#define WULING_ENGINE_DATA     0x0C9  // 201 ECMEngineStatus
+#define WULING_GAS_PEDAL       0x191  // 401 GAS_PEDAL
+#define WULING_ACC_STATUS      0x263  // 611 AccStatus
+#define WULING_STEERING_LKA    0x225  // 549 STEERING_LKA (TX)
+#define WULING_LKAS_HUD        0x373  // 883 LkasHud (TX)
+#define WULING_CRZ_BTN         0x1E1  // 481 STEER_BTN (TX)
+#define WULING_CRZ_CTRL        0x370  // 880 ASCMActiveCruiseControlStatus (TX)
+#define WULING_ACC_CMD         0x260  // 608 GasCmd (TX)
+#define WULING_ACC_STS         0x263  // 611 AccStatus (TX)
 
 // CAN bus numbers
-#define BUS_MAIN 0
-#define BUS_RADAR 1
-#define BUS_CAM 2
+#define WULING_BUS_MAIN   0
+#define WULING_BUS_RADAR  1
+#define WULING_BUS_CAM    2
+
+// Cruise button values from ACC_BTN_1 field in STEER_BTN message
+#define WULING_BTN_UNPRESS    0
+#define WULING_BTN_RES_ACCEL  8
+#define WULING_BTN_CANCEL     32
 
 const SteeringLimits WULING_STEERING_LIMITS = {
   .max_steer = 200,
@@ -25,150 +32,134 @@ const SteeringLimits WULING_STEERING_LIMITS = {
   .type = TorqueDriverLimited,
 };
 
-const CanMsg WULING_TX_MSGS[] = {{STEERING_LKAS, 0, 8}, {CRZ_BTN, 0, 8}, {CRZ_BTN, 2, 8},  {LKAS_HUD, 0, 8}, {CRZ_CTRL, 0, 8}, {CRZ_CTRL, 2, 8}, {ACC_STS, 0, 8}, {ACC_CMD, 0, 8}};
-
-RxCheck wuling_rx_checks[] = {
-    {.msg = {{CRZ_BTN, 0, 8, .frequency = 50U}, {0}, {0}}},
-    {.msg = {{ENGINE_DATA, 0, 8, .frequency = 100U}, {0}, {0}}},
-    {.msg = {{BRAKE_DATA, 0, 8, .frequency = 50U}, {0}, {0}}},
-    {.msg = {{GAS_DATA, 0, 8, .frequency = 50U}, {0}, {0}}},
+const CanMsg WULING_TX_MSGS[] = {
+  {WULING_STEERING_LKA, 0, 8},
+  {WULING_CRZ_BTN, 0, 8},
+  {WULING_CRZ_BTN, 2, 8},
+  {WULING_LKAS_HUD, 0, 8},
+  {WULING_CRZ_CTRL, 0, 8},
+  {WULING_CRZ_CTRL, 2, 8},
+  {WULING_ACC_STS, 0, 8},
+  {WULING_ACC_CMD, 0, 8},
 };
 
-// track msgs coming from OP so that we know what CAM msgs to drop and what to forward
-static void wuling_rx_hook(const CANPacket_t *to_push)
-{
-  if (((int)GET_BUS(to_push) == BUS_MAIN))
-  {
+RxCheck wuling_rx_checks[] = {
+  {.msg = {{WULING_CRZ_BTN, 0, 8, .frequency = 50U}, {0}, {0}}},
+  {.msg = {{WULING_ENGINE_DATA, 0, 8, .frequency = 10U}, {0}, {0}}},
+  {.msg = {{WULING_GAS_PEDAL, 0, 8, .frequency = 10U}, {0}, {0}}},
+  {.msg = {{WULING_WHEEL_SPEED, 0, 6, .frequency = 20U}, {0}, {0}}},
+  {.msg = {{WULING_STEERING_ANGLE, 0, 8, .frequency = 100U}, {0}, {0}}},
+  {.msg = {{WULING_ACC_STATUS, 0, 8, .frequency = 20U}, {0}, {0}}},
+};
+
+static void wuling_rx_hook(const CANPacket_t *to_push) {
+  if (((int)GET_BUS(to_push) == WULING_BUS_MAIN)) {
     int addr = GET_ADDR(to_push);
 
-    //speed data
-    if (addr == 840)
-    {
-      // sample speed: scale by 0.01 to get kph
-      int speed = (GET_BYTE(to_push, 0) << 8) | GET_BYTE(to_push, 1);
-      vehicle_moving = speed > 10; // moving when speed > 0.1 kph
+    // Speed from EBCMWheelSpdFront
+    // FLWheelSpd: start_bit 6, 15 bits, big-endian, unsigned, scale 0.0311 kph
+    if (addr == WULING_WHEEL_SPEED) {
+      int speed = ((GET_BYTE(to_push, 0) & 0x7FU) << 8) | GET_BYTE(to_push, 1);
+      vehicle_moving = speed > 10;  // > 0.311 kph
     }
 
-    //torque driver data
-    if (addr == 485)
-    {
-      int torque_driver_new = GET_BYTE(to_push, 6);
-      // update array of samples
+    // Driver torque from PSCMSteeringAngle
+    // SteeringTorque: start_bit 55, 8 bits, big-endian, signed, factor -1
+    if (addr == WULING_STEERING_ANGLE) {
+      int torque_driver_new = to_signed(GET_BYTE(to_push, 6), 8);
+      torque_driver_new = -torque_driver_new;  // DBC factor is -1
       update_sample(&torque_driver, torque_driver_new);
     }
 
-    //brake data
-    if (addr == 201)
-    {
+    // Brake pressed from ECMEngineStatus
+    // Brake_Pressed: bit 40
+    if (addr == WULING_ENGINE_DATA) {
       brake_pressed = GET_BIT(to_push, 40U) != 0U;
     }
 
-    //gas data
-    if (addr == 401)
-    {
+    // Gas pressed from GAS_PEDAL
+    // GAS_POS: start_bit 55, 8 bits, big-endian, unsigned
+    if (addr == WULING_GAS_PEDAL) {
       gas_pressed = GET_BYTE(to_push, 6) != 0U;
     }
 
-    //cruize data
-    if ((addr == 611))
-    {
-      bool cruise_available = (GET_BYTE(to_push, 4) >> 6) != 0U;
-      if (!cruise_available) {
-        // lateral_controls_allowed = false;
-      }
-
-      bool cruise_status = (GET_BYTE(to_push, 2) >> 5) != 0U;
-      bool cruise_engaged = cruise_status || cruise_available;
-
+    // Cruise engagement from AccStatus
+    // CruiseState: bit 21 (byte 2 bit 5)
+    if (addr == WULING_ACC_STATUS) {
+      bool cruise_engaged = GET_BIT(to_push, 21U) != 0U;
       pcm_cruise_check(cruise_engaged);
     }
 
-    generic_rx_checks((addr == STEERING_LKAS));
+    generic_rx_checks((addr == WULING_STEERING_LKA));
   }
-  controls_allowed = true;
 }
 
-static bool wuling_tx_hook(const CANPacket_t *to_send)
-{
-
+static bool wuling_tx_hook(const CANPacket_t *to_send) {
   bool tx = true;
   int addr = GET_ADDR(to_send);
-  int bus = GET_BUS(to_send);
 
-  // Check if msg is sent on the main BUS
-  if (bus == BUS_MAIN)
-  {
+  // Steer torque command checks
+  // STEER_TORQUE_CMD: start_bit 2, 11 bits, big-endian, signed
+  // STEER_REQUEST: bit 5
+  if (addr == WULING_STEERING_LKA) {
+    int desired_torque = ((GET_BYTE(to_send, 0) & 0x7U) << 8) + GET_BYTE(to_send, 1);
+    desired_torque = to_signed(desired_torque, 11);
 
-    // steer cmd checks
-    if (addr == STEERING_LKAS)
-    {
-      //  int desired_torque = ((GET_BYTE(to_send, 0) & 0x7U) << 8) + GET_BYTE(to_send, 1);
-      //  desired_torque = to_signed(desired_torque, 11);
+    bool steer_req = GET_BIT(to_send, 5U) != 0U;
 
-      //  bool steer_req = (GET_BIT(to_send, 5U) != 0U);
-      //   if (steer_torque_cmd_checks(desired_torque, steer_req, WULING_STEERING_LIMITS)) {
-      //     // tx = 0;
-      //   }
-    }
-
-    // // cruise buttons check
-    if (addr == CRZ_BTN)
-    {
-      // allow resume spamming while controls allowed, but
-      // only allow cancel while contrls not allowed
-      // int button = (GET_BYTE(to_send, 0) >> 2) & 0x15U;
-
-      // bool cancel_cmd = (button == 8) && cruise_engaged_prev;
-      // if (!controls_allowed && !cancel_cmd)
-      // {
-      //   // tx = 0;
-      // }
+    if (steer_torque_cmd_checks(desired_torque, steer_req, WULING_STEERING_LIMITS)) {
+      tx = false;
     }
   }
 
-  // 1 allows the message through
+  // Cruise button checks
+  // ACC_BTN_1: start_bit 0, 6 bits, little-endian
+  if (addr == WULING_CRZ_BTN) {
+    int button = GET_BYTE(to_send, 0) & 0x3FU;
+
+    // Unpress is always allowed
+    bool allowed = (button == WULING_BTN_UNPRESS);
+    // Resume allowed when cruise was previously engaged (for standstill resume)
+    allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
+    // Cancel allowed when cruise was previously engaged
+    allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
+
+    if (!allowed) {
+      tx = false;
+    }
+  }
+
   return tx;
 }
 
-static int wuling_fwd_hook(int bus, int addr)
-{
+static int wuling_fwd_hook(int bus, int addr) {
   int bus_fwd = -1;
 
-  if (bus == BUS_MAIN)
-  {
-    bool block_msg = (addr == 00);
-    if (!block_msg) {
-      bus_fwd = BUS_CAM;
+  if (bus == WULING_BUS_MAIN) {
+    bus_fwd = WULING_BUS_CAM;
+  } else if (bus == WULING_BUS_CAM) {
+    // Block messages that openpilot replaces
+    bool is_steer_msg = (addr == WULING_STEERING_LKA);
+    bool is_lkas_hud_msg = (addr == WULING_LKAS_HUD);
+    bool is_cruise_ctrl_msg = (addr == WULING_CRZ_CTRL);
+    bool is_acc_cmd_msg = (addr == WULING_ACC_CMD);
+    bool block = is_steer_msg || is_lkas_hud_msg || is_cruise_ctrl_msg || is_acc_cmd_msg;
+    if (!block) {
+      bus_fwd = WULING_BUS_MAIN;
     }
-  }
-  else if (bus == BUS_CAM)
-  {
-    // bool block = (addr == STEERING_LKAS) || (addr == ACC_CMD);
-    bool is_lkas_msg = (addr == LKAS_HUD);
-    bool is_acc_md = (addr == ACC_CMD);
-    bool block = (addr == STEERING_LKAS) || is_lkas_msg || (addr == CRZ_CTRL) || is_acc_md; 
-    if (!block)
-    {
-      bus_fwd = BUS_MAIN;
-    }
-  }
-  else
-  {
-    // don't fwd
   }
 
   return bus_fwd;
 }
 
-static safety_config wuling_init(uint16_t param)
-{
+static safety_config wuling_init(uint16_t param) {
   UNUSED(param);
   return BUILD_SAFETY_CFG(wuling_rx_checks, WULING_TX_MSGS);
 }
 
 const safety_hooks wuling_hooks = {
-    .init = wuling_init,
-    .rx = wuling_rx_hook,
-    .tx = wuling_tx_hook,
-    .fwd = wuling_fwd_hook,
+  .init = wuling_init,
+  .rx = wuling_rx_hook,
+  .tx = wuling_tx_hook,
+  .fwd = wuling_fwd_hook,
 };

@@ -6,7 +6,6 @@ from openpilot.common.conversions import Conversions as CV
 from openpilot.selfdrive.car import STD_CARGO_KG,scale_tire_stiffness, create_button_events, get_safety_config
 from openpilot.selfdrive.car.interfaces import CarInterfaceBase
 from openpilot.selfdrive.car.wuling.values import CAR, CruiseButtons, PREGLOBAL_CARS, CarControllerParams, CanBus
-from openpilot.common.params import Params
 from openpilot.common.op_params import opParams
 
 ButtonType = car.CarState.ButtonEvent.Type
@@ -19,24 +18,23 @@ BUTTONS_DICT = {CruiseButtons.RES_ACCEL: ButtonType.accelCruise, CruiseButtons.D
 CRUISE_OVERRIDE_SPEED_MIN = 5 * CV.KPH_TO_MS
 
 class CarInterface(CarInterfaceBase):
-  def __init__(self, CP, CarController, CarState):
-    super().__init__(CP, CarController, CarState)
+  def __init__(self, CP, FPCP, CarController, CarState):
+    super().__init__(CP, FPCP, CarController, CarState)
 
     self.dp_cruise_speed = 0. # km/h
     self.dp_override_speed_last = 0. # km/h
     self.dp_override_speed = 0. # m/s
 
   @staticmethod
-  def get_pid_accel_limits(CP, current_speed, cruise_speed, frogpilot_variables):
+  def get_pid_accel_limits(CP, current_speed, cruise_speed):
     return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
 
   @staticmethod
-  def _get_params(ret, params, candidate, fingerprint, car_fw, disable_openpilot_long, experimental_long, docs):
+  def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs, frogpilot_toggles):
     ret.carName = "wuling"
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.wuling)]
     ret.radarUnavailable = True
     ret.dashcamOnly = candidate in PREGLOBAL_CARS
-    # ret.lateralTuning.init('pid')
     ret.pcmCruise = True
 
     op_params = opParams("wuling car_interface.py for lateral override")
@@ -44,39 +42,16 @@ class CarInterface(CarInterfaceBase):
     ret.experimentalLongitudinalAvailable = True
     ret.openpilotLongitudinalControl = experimental_long
     ret.pcmCruise = not ret.openpilotLongitudinalControl
-    ret.mass = 1950.
-    ret.wheelbase = 2.75
     ret.steerRatio = op_params.get('steer_ratio', force_update=True)
-    ret.tireStiffnessFactor = 0.8
-    ret.centerToFront = ret.wheelbase * 0.4
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.2
 
     ret.transmissionType = TransmissionType.automatic
     ret.enableBsm = 0xb1 in fingerprint[0]  # SWA_01
-    # CarInterfaceBase.dp_lat_tune_collection(candidate, ret.latTuneCollection)
-    # CarInterfaceBase.configure_dp_tune(ret.lateralTuning, ret.latTuneCollection)
-
-    # ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 41.0], [0., 41.0]]
-    # ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.0002, 0.004], [0.1, 0.7]]
-    # ret.lateralTuning.pid.kf = 0.00006   # full torque for 20 deg at 80mph means 0.00007818594
-
-    # bp = [i * CV.MPH_TO_MS for i in op_params.get("TUNE_LAT_PID_bp_mph", force_update=True)]
-    # kpV = [i for i in op_params.get("TUNE_LAT_PID_kp", force_update=True)]
-    # kiV = [i for i in op_params.get("TUNE_LAT_PID_ki", force_update=True)]
-    # ret.lateralTuning.pid.kpV = kpV
-    # ret.lateralTuning.pid.kiV = kiV
-    # ret.lateralTuning.pid.kpBP = bp
-    # ret.lateralTuning.pid.kiBP = bp
-    # ret.lateralTuning.pid.kf = op_params.get('TUNE_LAT_PID_kf', force_update=True)
-
-    ret.minEnableSpeed = -1
-    ret.minSteerSpeed = -1
 
     CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-    params = Params()
     ret.longitudinalTuning.kpV = [0.1]
     ret.longitudinalTuning.kiV = [0.0]
     ret.stoppingControl = True
@@ -84,17 +59,13 @@ class CarInterface(CarInterfaceBase):
     ret.startingState = True
     ret.vEgoStarting = 0.1
     ret.startAccel = 0.8
-    # ret.openpilotLongitudinalControl = False
-    # ret.longitudinalActuatorDelayLowerBound = 0.5
-    # ret.longitudinalActuatorDelayUpperBound = 0.5
-    # ret.pcmCruise = not ret.openpilotLongitudinalControl
 
     return ret
 
   # returns a car.CarState
-  def _update(self, c, frogpilot_variables):
+  def _update(self, c, frogpilot_toggles):
 
-    ret, fp_ret = self.CS.update(self.cp, self.cp_cam, self.cp_loopback, frogpilot_variables)
+    ret, fp_ret = self.CS.update(self.cp, self.cp_cam, self.cp_loopback, frogpilot_toggles)
     # self.CS = self.sp_update_params(self.CS)
 
     buttonEvents = []
@@ -125,5 +96,5 @@ class CarInterface(CarInterfaceBase):
     ret.events = events.to_msg()
     return ret, fp_ret
 
-  def apply(self, c, now_nanos, frogpilot_variables):
-    return self.CC.update(c, self.CS, now_nanos, frogpilot_variables)
+  def apply(self, c, now_nanos, frogpilot_toggles):
+    return self.CC.update(c, self.CS, now_nanos, frogpilot_toggles)

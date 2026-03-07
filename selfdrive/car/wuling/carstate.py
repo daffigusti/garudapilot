@@ -16,8 +16,8 @@ NetworkLocation = car.CarParams.NetworkLocation
 STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
 
 class CarState(CarStateBase):
-  def __init__(self, CP):
-    super().__init__(CP)
+  def __init__(self, CP, FPCP):
+    super().__init__(CP, FPCP)
     can_define = CANDefine(DBC[CP.carFingerprint]["pt"])
     self.shifter_values = can_define.dv["ECMPRDNL"]["TRANSMISSION_STATE"]
     self.cluster_speed_hyst_gap = CV.KPH_TO_MS / 2.
@@ -49,7 +49,7 @@ class CarState(CarStateBase):
     self.display_timer = 0
 
 
-  def update(self, pt_cp, cam_cp, loopback_cp, frogpilot_variables):
+  def update(self, pt_cp, cam_cp, loopback_cp, frogpilot_toggles):
     ret = car.CarState.new_message()
     fp_ret = custom.FrogPilotCarState.new_message()
 
@@ -209,7 +209,7 @@ class CarState(CarStateBase):
     return ret,fp_ret
 
   @staticmethod
-  def get_cam_can_parser(CP):
+  def get_cam_can_parser(CP, FPCP):
     messages = []
     if CP.networkLocation == NetworkLocation.fwdCamera:
       messages += [
@@ -230,7 +230,7 @@ class CarState(CarStateBase):
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus.CAMERA)
 
   @staticmethod
-  def get_can_parser(CP):
+  def get_can_parser(CP, FPCP):
 
     messages = [
       ("ECMEngineStatus", 10),
@@ -274,10 +274,4 @@ class CarState(CarStateBase):
 
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus.LOOPBACK)
 
-  @staticmethod
-  def get_can2_parser(CP):
-    messages = []
-
-
-    return CANParser(DBC[CP.carFingerprint]["pt"], messages, 1)
 

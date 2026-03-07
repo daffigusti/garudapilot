@@ -1,13 +1,14 @@
 from cereal import car
-from common.conversions import Conversions as CV
-from common.numpy_fast import interp
-from common.realtime import DT_CTRL
+from openpilot.common.conversions import Conversions as CV
+from openpilot.common.numpy_fast import interp
+from openpilot.common.realtime import DT_CTRL
 from opendbc.can.packer import CANPacker
-from selfdrive.car import apply_driver_steer_torque_limits
-from selfdrive.car.wuling import wulingcan
-from selfdrive.car.wuling.values import DBC, CanBus, PREGLOBAL_CARS,CruiseButtons, CarControllerParams
+from openpilot.selfdrive.car import apply_driver_steer_torque_limits
+from openpilot.selfdrive.car.interfaces import CarControllerBase
+from openpilot.selfdrive.car.wuling import wulingcan
+from openpilot.selfdrive.car.wuling.values import DBC, CanBus, PREGLOBAL_CARS, CruiseButtons, CarControllerParams
 import cereal.messaging as messaging
-from common.params import Params
+from openpilot.common.params import Params
 
 VisualAlert = car.CarControl.HUDControl.VisualAlert
 NetworkLocation = car.CarParams.NetworkLocation
@@ -19,7 +20,7 @@ CAMERA_CANCEL_DELAY_FRAMES = 10
 # Enforce a minimum interval between steering messages to avoid a fault
 MIN_STEER_MSG_INTERVAL_MS = 15
 
-class CarController:
+class CarController(CarControllerBase):
   def __init__(self, dbc_name, CP, VM):
     self.CP = CP
     self.start_time = 0.
@@ -71,7 +72,7 @@ class CarController:
     self.m_tsc = 0
     self.steady_speed = 0
 
-  def update(self, CC, CS, now_nanos, experimentalMode, frogpilot_variables):
+  def update(self, CC, CS, now_nanos, frogpilot_toggles):
     actuators = CC.actuators
     hud_control = CC.hudControl
     hud_alert = hud_control.visualAlert

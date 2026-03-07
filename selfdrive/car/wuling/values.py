@@ -1,13 +1,13 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum, IntFlag, StrEnum
+from enum import Enum, IntFlag
 from typing import Dict, List, Union
 from panda.python import uds
 
 from cereal import car
 from openpilot.selfdrive.car import AngleRateLimit, CarSpecs, DbcDict, PlatformConfig, Platforms, dbc_dict
-from selfdrive.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
-from selfdrive.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
+from openpilot.selfdrive.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
+from openpilot.selfdrive.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
 
 Ecu = car.CarParams.Ecu
 
@@ -53,10 +53,6 @@ class CarControllerParams:
 
   def __init__(self, CP):
     self.ZERO_GAS = 0  # Coasting
-
-
-class CAR(StrEnum):
- ALMAS_RS_PRO = "WULING ALMAZ RS PRO 2022"
 
 
 class Footnote(Enum):

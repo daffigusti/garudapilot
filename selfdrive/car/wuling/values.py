@@ -73,7 +73,6 @@ class WulingPlatformConfig(PlatformConfig):
 
 class CAR(Platforms):
   ALMAS_RS_PRO = WulingPlatformConfig(
-    "WULING ALMAZ RS PRO 2022",
     [WulingCarDocs("Wuling Almaz RS Pro 2022")],
     CarSpecs(mass=1950, wheelbase=2.75, steerRatio=18)
   )

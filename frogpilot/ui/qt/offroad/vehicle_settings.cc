@@ -34,6 +34,7 @@ QStringList getCarNames(const QString &carMake, QMap<QString, QString> &carModel
     {"toyota", "toyota"},
     {"volkswagen", "volkswagen"},
     {"chery", "chery"},
+    {"wuling", "wuling"},
   };
 
   QStringList carNameList;

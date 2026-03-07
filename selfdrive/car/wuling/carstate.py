@@ -37,7 +37,8 @@ class CarState(CarStateBase):
 
     self.lkas_enabled = False
     self.prev_lkas_enabled = False
-    self.distance_button_pressed = False
+    self.distance_button = 0
+    self.prev_distance_button = 0
 
     self.crz_btns_counter = 0
     self.is_cruise_latch = False
@@ -59,11 +60,12 @@ class CarState(CarStateBase):
     self.cruise_buttons = pt_cp.vl["STEER_BTN"]["ACC_BTN_1"]
     self.buttons_counter = pt_cp.vl["STEER_BTN"]["COUNTER_1"]
 
-    self.distance_button_pressed = pt_cp.vl["STEER_BTN"]["ACC_BTN_1"] == 1 or pt_cp.vl["STEER_BTN"]["ACC_BTN_1"] == 2
+    self.prev_distance_button = self.distance_button
+    self.distance_button = 1 if (pt_cp.vl["STEER_BTN"]["ACC_BTN_1"] == 1 or pt_cp.vl["STEER_BTN"]["ACC_BTN_1"] == 2) else 0
 
     self.engineRPM = pt_cp.vl["ECMEngineStatus"]['EngineRPM']
     # self.prev_mads_enabled = self.mads_enabled
-    # self.prev_lkas_enabled = self.lkas_enabled
+    self.prev_lkas_enabled = self.lkas_enabled
 
     # Variables used for avoiding LKAS faults
     self.loopback_lka_steering_cmd_updated = len(loopback_cp.vl_all["STEERING_LKA"]["COUNTER"]) > 0

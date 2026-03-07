@@ -127,18 +127,9 @@ class CarController(CarControllerBase):
 
       # if CC.cruiseControl.resume and self.frame % 2 == 0:
 
-      if (CS.resume_alert == 1 or CC.cruiseControl.resume) and self.frame % 2 == 0:
-          print("Cruize button %s " % CC.cruiseControl.resume)
-          print("Resule Alert %s " % CS.resume_alert)
-        # Send Resume button when planner wants car to move
-          can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.buttons_counter, CruiseButtons.RES_ACCEL)]*25)
-          self.last_button_frame = self.frame
-
-    # if CS.out.steeringPressed:
-    #     can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.cruise_buttons,0, CruiseButtons.RES_ACCEL)]*25)
-    #     can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.cruise_buttons,1, CruiseButtons.RES_ACCEL)]*25)
-    #     can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.cruise_buttons,2, CruiseButtons.RES_ACCEL)]*25)
-    #     print("Send Resume")
+    # Cruise control speed adjustment & auto-resume via long press button spamming
+    if CC.longActive and CS.out.cruiseState.enabled and not CC.cruiseControl.cancel:
+      can_sends.extend(wulingcan.create_wuling_cc_spam_command(self.packer_pt, self, CS, actuators))
     # Steering (Active: 50Hz
     steer_step = self.params.STEER_STEP
     lat_active = CC.latActive

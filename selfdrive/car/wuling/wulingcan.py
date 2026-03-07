@@ -1,6 +1,8 @@
 import copy
 from cereal import car
+from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import clip
+from openpilot.common.realtime import DT_CTRL
 from openpilot.selfdrive.car import make_can_msg
 from openpilot.selfdrive.car.wuling.values import CruiseButtons
 
@@ -362,4 +364,46 @@ def create_resume_button(bus, active, critical, steer):
   # dat = b"\x48\x08\x00\x00\x00\x00\x00\x50"
   dat = b"\x80\x20\x00\x00\x00\x00\x00\xa0"
   return make_can_msg(0x1e1, dat, bus)
+
+
+def create_wuling_cc_spam_command(packer, controller, CS, actuators):
+  _CV = CV.MS_TO_KPH
+  # Interval pengiriman pesan tombol (detik). Semakin kecil = semakin responsif.
+  SEND_INTERVAL = 0.04  # ~25Hz
+  # Interval auto-resume saat standstill (lebih lambat agar tidak terlalu agresif)
+  RESUME_INTERVAL = 0.2  # ~5Hz
+
+  target_speed_kph = int(round(CS.out.vEgo * _CV + actuators.accel * _CV))
+  current_set_speed = int(round(CS.out.cruiseState.speed * _CV))
+
+  cruiseBtn = CruiseButtons.INIT
+  interval = SEND_INTERVAL
+
+  # Auto-resume: saat mobil berhenti (standstill) dan planner mau jalan
+  if CS.out.standstill and actuators.accel > 0:
+    cruiseBtn = CruiseButtons.RES_ACCEL
+    controller.apply_speed = current_set_speed
+    interval = RESUME_INTERVAL
+  elif current_set_speed <= 0 and actuators.accel < -1:
+    cruiseBtn = CruiseButtons.CANCEL
+    controller.apply_speed = 0
+  elif target_speed_kph < current_set_speed:
+    # Target lebih rendah dari set point -> tahan tombol DECEL
+    cruiseBtn = CruiseButtons.DECEL_SET
+    controller.apply_speed = target_speed_kph
+  elif target_speed_kph > current_set_speed:
+    # Target lebih tinggi dari set point -> tahan tombol RES/ACCEL
+    cruiseBtn = CruiseButtons.RES_ACCEL
+    controller.apply_speed = target_speed_kph
+  else:
+    # Sudah sesuai, tidak perlu tekan tombol
+    controller.apply_speed = current_set_speed
+
+  # Kirim pesan tombol secara kontinu (long press) selama perlu mengubah kecepatan
+  if (cruiseBtn != CruiseButtons.INIT) and ((controller.frame - controller.last_button_frame) * DT_CTRL >= interval):
+    controller.last_button_frame = controller.frame
+    idx = (CS.buttons_counter + 1) % 4
+    return [create_buttons(packer, idx, cruiseBtn)]
+  else:
+    return []
 

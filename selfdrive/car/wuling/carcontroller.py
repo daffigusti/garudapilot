@@ -166,10 +166,9 @@ class CarController(CarControllerBase):
        set_speed = int(round(hud_v_cruise * CV.MS_TO_KPH))
        can_sends.append(wulingcan.create_acc_hud_control(self.packer_pt, 0, CS.ascm_cc_status,CC.enabled and CS.out.cruiseState.enabled, set_speed, 0, 0))
 
-    # send HUD alerts
-    if self.frame % 5 == 0:
-      # TODO: find a way to silence audible warnings so we can add more hud alerts
-      ldw = CC.hudControl.visualAlert == VisualAlert.ldw
+    # send HUD alerts only when latActive, otherwise let stock camera LkasHud passthrough
+    # so auto high beam and other camera features keep working
+    if CC.latActive and self.frame % 5 == 0:
       steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
       can_sends.extend(wulingcan.create_lkas_hud(self.packer_pt, 0, CS.lkas_hud, CC.latActive, steer_required))
 

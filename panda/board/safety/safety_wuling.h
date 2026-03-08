@@ -18,6 +18,7 @@
 
 // Cruise button values from ACC_BTN_1 field in STEER_BTN message
 #define WULING_BTN_UNPRESS    0
+#define WULING_BTN_DECEL_SET  4
 #define WULING_BTN_RES_ACCEL  8
 #define WULING_BTN_CANCEL     32
 
@@ -119,8 +120,10 @@ static bool wuling_tx_hook(const CANPacket_t *to_send) {
 
     // Unpress is always allowed
     bool allowed = (button == WULING_BTN_UNPRESS);
-    // Resume allowed when cruise was previously engaged (for standstill resume)
+    // Resume/accel allowed when cruise was previously engaged
     allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
+    // Decel/set allowed when cruise was previously engaged
+    allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
     // Cancel allowed when cruise was previously engaged
     allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
 
@@ -140,7 +143,7 @@ static int wuling_fwd_hook(int bus, int addr) {
   } else if (bus == WULING_BUS_CAM) {
     // Block messages that openpilot replaces
     bool is_steer_msg = (addr == WULING_STEERING_LKA);
-    bool is_lkas_hud_msg = (addr == WULING_LKAS_HUD);
+    bool is_lkas_hud_msg = (addr == WULING_LKAS_HUD) && controls_allowed;  // only block when OP active, passthrough for auto high beam
     bool is_cruise_ctrl_msg = (addr == WULING_CRZ_CTRL);
     bool is_acc_cmd_msg = (addr == WULING_ACC_CMD);
     bool block = is_steer_msg || is_lkas_hud_msg || is_cruise_ctrl_msg || is_acc_cmd_msg;

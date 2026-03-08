@@ -3,6 +3,7 @@ from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import clip,interp
 from opendbc.can.packer import CANPacker
 from openpilot.selfdrive.car import apply_std_steer_angle_limits
+from openpilot.selfdrive.car.interfaces import CarControllerBase
 from openpilot.selfdrive.car.chery import cherycan
 from openpilot.selfdrive.car.chery.values import CanBus, DBC, CarControllerParams
 import cereal.messaging as messaging
@@ -19,8 +20,8 @@ CAMERA_CANCEL_DELAY_FRAMES = 10
 # Enforce a minimum interval between steering messages to avoid a fault
 MIN_STEER_MSG_INTERVAL_MS = 15
 
-class CarController:
-  def __init__(self, dbc_name, CP, FPCP, VM):
+class CarController(CarControllerBase):
+  def __init__(self, dbc_name, CP, VM):
     self.CP = CP
     self.start_time = 0.
     self.apply_steer_last = 0

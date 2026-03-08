@@ -6,7 +6,6 @@ from openpilot.common.conversions import Conversions as CV
 from openpilot.selfdrive.car import STD_CARGO_KG,scale_tire_stiffness, create_button_events, get_safety_config
 from openpilot.selfdrive.car.interfaces import CarInterfaceBase
 from openpilot.selfdrive.car.wuling.values import CAR, CruiseButtons, PREGLOBAL_CARS, CarControllerParams, CanBus
-from openpilot.common.op_params import opParams
 
 ButtonType = car.CarState.ButtonEvent.Type
 FrogPilotButtonType = custom.FrogPilotCarState.ButtonEvent.Type
@@ -38,12 +37,9 @@ class CarInterface(CarInterfaceBase):
     ret.dashcamOnly = candidate in PREGLOBAL_CARS
     ret.pcmCruise = True
 
-    op_params = opParams("wuling car_interface.py for lateral override")
-
     ret.experimentalLongitudinalAvailable = True
     ret.openpilotLongitudinalControl = experimental_long
     ret.pcmCruise = not ret.openpilotLongitudinalControl
-    ret.steerRatio = op_params.get('steer_ratio', force_update=True)
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.2

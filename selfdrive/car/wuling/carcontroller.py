@@ -195,7 +195,7 @@ class CarController(CarControllerBase):
       # else:
       #   can_sends.extend(wulingcan.create_radar_command(self.packer_pt, CS.acc_cmd, 0, self.frame, CC, CS))
 
-    new_actuators = actuators.copy()
+    new_actuators = actuators.as_builder()
     new_actuators.steer = self.apply_steer_last / self.params.STEER_MAX
     new_actuators.steerOutputCan = self.apply_steer_last
     new_actuators.gas = self.apply_gas

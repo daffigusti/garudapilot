@@ -42,7 +42,7 @@ class CarInterface(CarInterfaceBase):
     ret.pcmCruise = not ret.openpilotLongitudinalControl
 
     ret.steerLimitTimer = 0.4
-    ret.steerActuatorDelay = 0.3
+    ret.steerActuatorDelay = 0.2
 
     ret.transmissionType = TransmissionType.automatic
     ret.enableBsm = 0xb1 in fingerprint[0]  # SWA_01

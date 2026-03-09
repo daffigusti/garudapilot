@@ -19,7 +19,7 @@ class CarControllerParams:
   LKAS_HUD_STEP = 5                     # LkasHUD frequency 20Hz
 
   STEER_MAX = 150  # Safety limit, not LKA max. Trucks use 600.
-  STEER_DELTA_UP = 3      # 3 is stock. 100 is fine. 200 is too much it seems
+  STEER_DELTA_UP = 4      # 4 slightly more responsive. stock is 3
   STEER_DELTA_DOWN = 4    # no faults on the way down it seems
 
   STEER_ERROR_MAX = 80

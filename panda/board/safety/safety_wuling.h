@@ -23,9 +23,9 @@
 #define WULING_BTN_CANCEL     32
 
 const SteeringLimits WULING_STEERING_LIMITS = {
-  .max_steer = 200,
-  .max_rate_up = 3,
-  .max_rate_down = 2,
+  .max_steer = 300,
+  .max_rate_up = 5,
+  .max_rate_down = 5,
   .driver_torque_allowance = 35,
   .driver_torque_factor = 2,
   .max_rt_delta = 128,

@@ -258,13 +258,8 @@ def create_acc_hud_control(packer, bus, acc_hud_stock, enabled, target_speed_kph
   return packer.make_can_msg("ASCMActiveCruiseControlStatus", bus, values)
 
 
-def create_radar_command(packer, cmd_stock, enable, frame, CC, CS):
-  accel = 0
-  ret = []  
-  
-  if CC.longActive: # this is set true in longcontrol.py
-    accel = CC.actuators.accel * 1170
-    accel = accel if accel < 1000 else 1000
+def create_radar_command(packer, cmd_stock, apply_gas, frame, CC, CS, stopping=False, at_full_stop=False, near_stop=False):
+  ret = []
 
   values = {s: cmd_stock[s] for s in [
       "GAS_CMD",
@@ -283,41 +278,24 @@ def create_radar_command(packer, cmd_stock, enable, frame, CC, CS):
       "NEW_SIGNAL_3",
       "COUNTER_2",
     ]}
- 
-  # if enable:
-  #     values.update({
-  #       "ENABLE": 1,
-  #       "GAS_CMD": 10,
-  #       "NEW_SIGNAL_9": 2,
-  #       "NEW_SIGNAL_1": -6,
-  #       "NEW_SIGNAL_2": -40,
-  #       "NEW_SIGNAL_3": -13,
-  #     })
-      
-  # values.update({
-  #     "GAS_CMD": 0,
-  #   })
-    
-  # if enable:
-  #     values.update({
-  #       "ACC_STATE": 4,
-  #       "GAS_CMD": -45,
-  #       "NEW_SIGNAL_1": 6,
-  #       "NEW_SIGNAL_2": -5,
-  #       "NEW_SIGNAL_3": -29,
-  #     })
-      
-  # if enable:
-  #     values.update({
-  #       "ACC_STATE": 0,
-  #       "GAS_CMD": 9,
-  #       "NEW_SIGNAL_1": 0,
-  #       "NEW_SIGNAL_2": 0,
-  #       "NEW_SIGNAL_3": 0,
-  #     })
 
-  # print("in wulingcan, packing messages: \r")
-  # print(values)
+  if CC.longActive:
+    values["GAS_CMD"] = apply_gas
+    if at_full_stop:
+      values["FULL_STOP"] = 1
+      values["FULL_STOP_INV"] = 0
+      values["STOP_REQUEST"] = 1
+      values["GAS_CMD"] = 0
+    elif near_stop:
+      values["STOPPING_T1"] = 1
+      values["STOP_REQUEST"] = 1
+      values["GAS_CMD"] = 0
+    else:
+      values["FULL_STOP"] = 0
+      values["FULL_STOP_INV"] = 1
+      values["STOP_REQUEST"] = 0
+      values["STOPPING_T1"] = 0
+
   ret.append(packer.make_can_msg("GasCmd", 0, values))
 
   return ret

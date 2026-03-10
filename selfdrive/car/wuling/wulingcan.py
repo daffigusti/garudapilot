@@ -334,24 +334,27 @@ def create_resume_button(bus, active, critical, steer):
   return make_can_msg(0x1e1, dat, bus)
 
 
-def create_wuling_cc_spam_command(packer, controller, CS, actuators, hud_v_cruise=0):
+def create_wuling_cc_spam_command(packer, controller, CS, actuators):
   _CV = CV.MS_TO_KPH
   # Interval pengiriman pesan tombol (detik). Semakin kecil = semakin responsif.
   SEND_INTERVAL = 0.04  # ~25Hz
   # Interval auto-resume saat standstill (lebih lambat agar tidak terlalu agresif)
   RESUME_INTERVAL = 0.2  # ~5Hz
 
-  target_speed_kph = int(round(hud_v_cruise * _CV)) if hud_v_cruise > 0 else int(round(CS.out.vEgo * _CV))
+  target_speed_kph = int(round(CS.out.vEgo * _CV + actuators.accel * _CV))
   current_set_speed = int(round(CS.out.cruiseState.speed * _CV))
 
   cruiseBtn = CruiseButtons.INIT
   interval = SEND_INTERVAL
 
-  # Auto-resume: saat mobil berhenti (standstill)
-  if CS.out.standstill and not CS.out.brakePressed:
+  # Auto-resume: saat mobil berhenti (standstill) dan planner mau jalan
+  if CS.out.standstill and actuators.accel > 0:
     cruiseBtn = CruiseButtons.RES_ACCEL
     controller.apply_speed = current_set_speed
     interval = RESUME_INTERVAL
+  elif current_set_speed <= 0 and actuators.accel < -1:
+    cruiseBtn = CruiseButtons.CANCEL
+    controller.apply_speed = 0
   elif target_speed_kph < current_set_speed:
     # Target lebih rendah dari set point -> tahan tombol DECEL
     cruiseBtn = CruiseButtons.DECEL_SET

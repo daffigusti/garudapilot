@@ -133,13 +133,13 @@ def create_lkas_hud(packer, bus, lkas_hud_stock_values, lkas_active=0, steer_war
   ]}
 
   # --- Referensi kombinasi signal yang pernah dicoba ---
-  # Kombinasi 1: minimal
-  if lkas_active:
-    values.update({
-      "LKA_ACTIVE": 1,
-      "STEER_WARNING": 1,
-      "LKA_LINE_2": 0,
-    })
+  # Kombinasi 1: minimal - ERROR, trigger warning kuning
+  # if lkas_active:
+  #   values.update({
+  #     "LKA_ACTIVE": 1,
+  #     "STEER_WARNING": 1,
+  #     "LKA_LINE_2": 0,
+  #   })
 
   # Kombinasi 2: dengan state
   # if lkas_active:

@@ -610,7 +610,8 @@ class FrogPilotVariables:
     friction = CP.lateralTuning.torque.friction
     has_auto_tune = toggle.car_make in {"hyundai", "toyota"} and CP.lateralTuning.which() == "torque"
     has_bsm = CP.enableBsm
-    toggle.has_cc_long = toggle.car_make == "gm" and bool(CP.flags & GMFlags.CC_LONG.value)
+    toggle.has_cc_long = (toggle.car_make == "gm" and bool(CP.flags & GMFlags.CC_LONG.value)) or \
+                         (toggle.car_make == "wuling" and CP.openpilotLongitudinalControl)
     has_nnff = nnff_supported(toggle.car_model)
     toggle.has_pedal = CP.enableGasInterceptor
     has_radar = not CP.radarUnavailable

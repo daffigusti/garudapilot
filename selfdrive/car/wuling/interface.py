@@ -39,7 +39,7 @@ class CarInterface(CarInterfaceBase):
 
     ret.experimentalLongitudinalAvailable = True
     ret.openpilotLongitudinalControl = experimental_long
-    ret.pcmCruise = not ret.openpilotLongitudinalControl
+    ret.pcmCruise = True  # always True, long controlled via button spamming on stock ACC
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.3

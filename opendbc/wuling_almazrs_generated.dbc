@@ -145,6 +145,11 @@ BO_ 549 STEERING_LKA: 8 XXX
  SG_ SET_ME_X0 : 3|2@1+ (1,0) [0|3] "" XXX
  SG_ STEER_REQUEST : 5|1@0+ (1,0) [0|1] "" XXX
  SG_ COUNTER : 7|2@0+ (1,0) [0|7] "" XXX
+ SG_ LKA_BYTE2 : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ LKA_BYTE3 : 24|8@1+ (1,0) [0|255] "" XXX
+ SG_ LKA_BYTE4 : 32|8@1+ (1,0) [0|255] "" XXX
+ SG_ LKA_BYTE5 : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ LKA_BYTE6 : 48|8@1+ (1,0) [0|255] "" XXX
  SG_ CHECKSUM : 63|8@0+ (1,0) [0|255] "" XXX
 
 BO_ 883 LkasHud: 8 K20_ECM

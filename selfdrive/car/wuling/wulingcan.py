@@ -19,7 +19,6 @@ def create_steering_control(packer, apply_steer, frame, steer_req, stock_values=
 
   values.update({
       "STEER_TORQUE_CMD": -apply_steer,
-      "SET_ME_X0": 0x00,
       "COUNTER": ((frame // 2) + 1) % 0x11,
       "STEER_REQUEST": steer_req,
   })

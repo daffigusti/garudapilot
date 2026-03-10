@@ -128,7 +128,7 @@ class CarController(CarControllerBase):
       # if CC.cruiseControl.resume and self.frame % 2 == 0:
 
     # Cruise control speed adjustment & auto-resume via long press button spamming
-    if CC.enabled and CS.out.cruiseState.enabled and not CC.cruiseControl.cancel:
+    if CC.longActive and CS.out.cruiseState.enabled and not CC.cruiseControl.cancel:
       can_sends.extend(wulingcan.create_wuling_cc_spam_command(self.packer_pt, self, CS, actuators))
     # Steering (Active: 50Hz
     steer_step = self.params.STEER_STEP

@@ -55,7 +55,7 @@ class CarState(CarStateBase):
     ret = car.CarState.new_message()
     fp_ret = custom.FrogPilotCarState.new_message()
 
-    cp_cruise = cam_cp if self.CP.openpilotLongitudinalControl else pt_cp
+    cp_cruise = pt_cp
 
     self.prev_cruise_buttons = self.cruise_buttons
     self.cruise_buttons = pt_cp.vl["STEER_BTN"]["ACC_BTN_1"]
@@ -224,13 +224,6 @@ class CarState(CarStateBase):
         messages += [
            ("BSM_SIGNAL",10)
         ]
-      if CP.openpilotLongitudinalControl:
-        messages += [
-          ("GasCmd", 50),
-          ("AccStatus", 20),
-          ("ASCMActiveCruiseControlStatus", 10),
-        ]
-
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus.CAMERA)
 
   @staticmethod
@@ -255,12 +248,11 @@ class CarState(CarStateBase):
       ("BRAKE_MODULE", 50),
     ]
 
-    if not CP.openpilotLongitudinalControl:
-      messages += [
-        ("GasCmd", 50),
-        ("AccStatus", 20),
-        ("ASCMActiveCruiseControlStatus", 10),
-      ]
+    messages += [
+      ("GasCmd", 50),
+      ("AccStatus", 20),
+      ("ASCMActiveCruiseControlStatus", 10),
+    ]
      # Used to read back last counter sent to PT by camera
     if CP.networkLocation == NetworkLocation.fwdCamera:
       messages += [

@@ -24,8 +24,8 @@
 
 const SteeringLimits WULING_STEERING_LIMITS = {
   .max_steer = 200,
-  .max_rate_up = 3,
-  .max_rate_down = 3,
+  .max_rate_up = 2,
+  .max_rate_down = 2,
   .driver_torque_allowance = 35,
   .driver_torque_factor = 2,
   .max_rt_delta = 128,

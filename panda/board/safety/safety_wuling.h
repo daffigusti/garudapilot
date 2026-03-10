@@ -141,10 +141,9 @@ static int wuling_fwd_hook(int bus, int addr) {
   if (bus == WULING_BUS_MAIN) {
     bus_fwd = WULING_BUS_CAM;
   } else if (bus == WULING_BUS_CAM) {
-    // Block messages that openpilot replaces
+    // Block only steer message that openpilot replaces
     bool is_steer_msg = (addr == WULING_STEERING_LKA);
-    bool is_lkas_hud_msg = (addr == WULING_LKAS_HUD) && controls_allowed;  // block when OP active, passthrough for auto high beam when inactive
-    bool block = is_steer_msg || is_lkas_hud_msg;
+    bool block = is_steer_msg;
     if (!block) {
       bus_fwd = WULING_BUS_MAIN;
     }

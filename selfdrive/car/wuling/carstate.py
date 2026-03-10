@@ -42,6 +42,7 @@ class CarState(CarStateBase):
 
     self.crz_btns_counter = 0
     self.is_cruise_latch = False
+    self.stock_steering_lka = {}
     self.params = CarControllerParams(CP)
 
     # FrogPilot variables
@@ -186,7 +187,8 @@ class CarState(CarStateBase):
     self.acc_status = copy.copy(cp_cruise.vl["AccStatus"])
     self.ascm_cc_status = copy.copy(cp_cruise.vl["ASCMActiveCruiseControlStatus"])
     self.gap_dist_button = self.cruise_gap
-    self.lkas_enabled = cam_cp.vl["LkasHud"]["LKA_ACTIVE"];
+    self.lkas_enabled = cam_cp.vl["LkasHud"]["LKA_ACTIVE"]
+    self.stock_steering_lka = copy.copy(cam_cp.vl["STEERING_LKA"])
     self.lkas_status = pt_cp.vl["PSCMSteeringAngle"]["STEER_STATUS"]
 
     # Consume blind-spot monitoring info/warning LED states, if available.

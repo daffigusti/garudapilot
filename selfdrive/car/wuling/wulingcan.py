@@ -11,19 +11,20 @@ VisualAlert = car.CarControl.HUDControl.VisualAlert
 def wuling_checksum(dat):
   return sum(dat) & 0xFF
 
-def create_steering_control(packer, apply_steer, frame, steer_req):
-  idx = (apply_steer) % 255
-  # apply_steer  = clip(apply_steer,-100,100);
-  values = {
+def create_steering_control(packer, apply_steer, frame, steer_req, stock_values=None):
+  if stock_values is not None:
+    values = {s: stock_values[s] for s in stock_values if s != "CHECKSUM"}
+  else:
+    values = {}
+
+  values.update({
       "STEER_TORQUE_CMD": -apply_steer,
       "SET_ME_X0": 0x00,
-      "COUNTER": (frame/2) % 4,
+      "COUNTER": ((frame // 2) + 1) % 0x11,
       "STEER_REQUEST": steer_req,
-  }
-  values["COUNTER"] = (values["COUNTER"] + 1) % 0x11
-  
-  dat = packer.make_can_msg("STEERING_LKA", 0, values)[2]
+  })
 
+  dat = packer.make_can_msg("STEERING_LKA", 0, values)[2]
   crc = wuling_checksum(dat[:-1])
   values["CHECKSUM"] = crc
 

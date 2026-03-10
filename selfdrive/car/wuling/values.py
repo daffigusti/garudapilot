@@ -19,8 +19,8 @@ class CarControllerParams:
   LKAS_HUD_STEP = 5                     # LkasHUD frequency 20Hz
 
   STEER_MAX = 200  # Safety limit, not LKA max. Trucks use 600.
-  STEER_DELTA_UP = 2      # torque ramp up rate per frame, smooth transition
-  STEER_DELTA_DOWN = 2    # torque ramp down rate per frame
+  STEER_DELTA_UP = 3      # torque ramp up rate per frame
+  STEER_DELTA_DOWN = 3    # torque ramp down rate per frame
 
   STEER_ERROR_MAX = 80
   MIN_STEER_SPEED = 3.  # m/s

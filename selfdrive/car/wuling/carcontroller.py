@@ -159,15 +159,15 @@ class CarController(CarControllerBase):
     lka_critical = lka_active and abs(actuators.steer) > 0.9
     lka_icon_status = (lka_active, lka_critical)
 
-    # send Acc dashboard message only when openpilot controls longitudinal
-    if self.CP.openpilotLongitudinalControl and self.frame % 5 == 0:
-       set_speed = int(round(hud_v_cruise * CV.MS_TO_KPH))
-       can_sends.append(wulingcan.create_acc_hud_control(self.packer_pt, 0, CS.ascm_cc_status, CC.enabled and CS.out.cruiseState.enabled, set_speed, 0, 0))
+    # ACC dashboard disabled - let stock handle it
+    # if self.CP.openpilotLongitudinalControl and self.frame % 5 == 0:
+    #    set_speed = int(round(hud_v_cruise * CV.MS_TO_KPH))
+    #    can_sends.append(wulingcan.create_acc_hud_control(self.packer_pt, 0, CS.ascm_cc_status, CC.enabled and CS.out.cruiseState.enabled, set_speed, 0, 0))
 
-    # HUD control disabled - let stock camera handle LkasHud (auto high beam etc)
-    # if CC.latActive and self.frame % 5 == 0:
-    #   steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
-    #   can_sends.extend(wulingcan.create_lkas_hud(self.packer_pt, 0, CS.lkas_hud, CC.latActive, steer_required))
+    # Send LkasHud with steer status when latActive, passthrough stock when not
+    if CC.latActive and self.frame % 5 == 0:
+      steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
+      can_sends.extend(wulingcan.create_lkas_hud(self.packer_pt, 0, CS.lkas_hud, CC.latActive, steer_required))
 
     # """ACC RADAR COMMAND - disabled, long controlled via button spamming"""
     # if self.CP.openpilotLongitudinalControl and self.frame % 2 == 0:

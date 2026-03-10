@@ -131,74 +131,19 @@ def create_lkas_hud(packer, bus, lkas_hud_stock_values, lkas_active=0, steer_war
     "NEW_SIGNAL_7",
     "NEW_SIGNAL_8"
   ]}
-  
-  # values.update({
-  #         "LKA_ACTIVE": 1,
-  #         "LKAS_STATE": 1,
-  #         "LEAD_FOLLOW_1": 1,
-  #         "LEAD_FOLLOW_2": 1,
-  #         "HUD_ALERT": 1,
-  #         "LKA_LINE": 3,
-  #         "STEER_WARNING": 2,
-  #         "LKA_LINE_2": 0,
-  #         "NEW_SIGNAL_1": 1,
-  #       })
-  # values.update({
-  #     "LKA_ACTIVE": 1,
-  #     "STEER_WARNING": 1,
-  #     "LKA_LINE_2":0
-  #   })
-  
-  # if lkas_active:
-  #     values.update({
-  #       "LKA_ACTIVE": 1,
-  #       # "LKAS_STATE": lkas_active,
-  #       "STEER_WARNING": 1,
-  #       "LKA_LINE_2": 0,
-  #     })
-  # if lkas_active:
-  #     values.update({
-  #         "LKA_ACTIVE": 1,
-  #         "LKAS_STATE": 1,
-  #         "LEAD_FOLLOW_1": 1,
-  #         "LEAD_FOLLOW_2": 1,
-  #         "HUD_ALERT": 1,
-  #         "LKA_LINE": 3,
-  #         "STEER_WARNING": 2,
-  #         "LKA_LINE_2": 0,
-  #         "NEW_SIGNAL_1": 1,
-  #       })
-  # if lkas_active:
-  #     values.update({
-  #       "LKA_ACTIVE": 1,
-  #       "LKAS_STATE": 1,
-  #       "LEAD_FOLLOW_1": 1,
-  #       "LEAD_FOLLOW_2": 1,
-  #       "HUD_ALERT": 2,
-  #       "STEER_WARNING": 3,
-  #       "LKA_LINE_2": 1,
-  #     })
-  # if steer_warning:
-  #     values.update({
-  #       "ALERT": 1,
-  #       "STEER_WARNING": 3,
-  #     })
-      
-  # if steer_warning:
-  #    values.update({
-  #       "ALERT": 1,
-  #       "STEER_WARNING": 1,
-  #     })
-     
-  # print('Send to Lkas');
-  # print(values)
-  # values.update({
-  #   "STEER_WARNING": steer_warning,
-  # })
-  
+
+  if lkas_active:
+    values.update({
+      "LKA_ACTIVE": 1,
+      "LKAS_STATE": 1,
+      "LKA_LINE": 3,
+    })
+  if steer_warning:
+    values.update({
+      "STEER_WARNING": 3,
+    })
+
   commands.append(packer.make_can_msg("LkasHud", bus, values))
-  # commands.append(packer.make_can_msg("LkasHud", 1, values))
-  # commands.append(packer.make_can_msg("LkasHud", 2, values))
 
   return commands
 

@@ -243,6 +243,8 @@ class Panda:
   FLAG_GM_PEDAL_LONG = 128  # TODO: This can be inferred
   FLAG_GM_GAS_INTERCEPTOR = 256
 
+  FLAG_WULING_CC_LONG = 1  # longitudinal via button spamming
+
   FLAG_FORD_LONG_CONTROL = 1
   FLAG_FORD_CANFD = 2
 

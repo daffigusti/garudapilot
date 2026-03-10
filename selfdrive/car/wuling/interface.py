@@ -35,9 +35,12 @@ class CarInterface(CarInterfaceBase):
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.wuling)]
     ret.radarUnavailable = True
     ret.dashcamOnly = candidate in PREGLOBAL_CARS
-    ret.experimentalLongitudinalAvailable = False
-    ret.openpilotLongitudinalControl = False
-    ret.pcmCruise = True  # stock ACC controls gas/brake, openpilot adjusts cruise speed via button spam
+    ret.experimentalLongitudinalAvailable = True
+    ret.openpilotLongitudinalControl = experimental_long
+    ret.pcmCruise = True  # stock ACC controls gas/brake, cruise engagement from stock PCM
+
+    if ret.openpilotLongitudinalControl:
+      ret.safetyConfigs[0].safetyParam |= Panda.FLAG_WULING_CC_LONG
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.3

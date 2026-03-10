@@ -16,11 +16,16 @@
 #define WULING_BUS_RADAR  1
 #define WULING_BUS_CAM    2
 
+// Safety param flags
+const uint16_t WULING_PARAM_CC_LONG = 1;  // longitudinal via button spamming
+
 // Cruise button values from ACC_BTN_1 field in STEER_BTN message
 #define WULING_BTN_UNPRESS    0
 #define WULING_BTN_DECEL_SET  4
 #define WULING_BTN_RES_ACCEL  8
 #define WULING_BTN_CANCEL     32
+
+bool wuling_cc_long = false;
 
 const SteeringLimits WULING_STEERING_LIMITS = {
   .max_steer = 200,
@@ -33,6 +38,7 @@ const SteeringLimits WULING_STEERING_LIMITS = {
   .type = TorqueDriverLimited,
 };
 
+// Full TX msgs (includes gas/brake commands)
 const CanMsg WULING_TX_MSGS[] = {
   {WULING_STEERING_LKA, 0, 8},
   {WULING_CRZ_BTN, 0, 8},
@@ -42,6 +48,14 @@ const CanMsg WULING_TX_MSGS[] = {
   {WULING_CRZ_CTRL, 2, 8},
   {WULING_ACC_STS, 0, 8},
   {WULING_ACC_CMD, 0, 8},
+};
+
+// CC_LONG TX msgs (steering + buttons only, no gas/brake commands)
+const CanMsg WULING_CC_LONG_TX_MSGS[] = {
+  {WULING_STEERING_LKA, 0, 8},
+  {WULING_CRZ_BTN, 0, 8},
+  {WULING_CRZ_BTN, 2, 8},
+  {WULING_LKAS_HUD, 0, 8},
 };
 
 RxCheck wuling_rx_checks[] = {
@@ -120,12 +134,18 @@ static bool wuling_tx_hook(const CANPacket_t *to_send) {
 
     // Unpress is always allowed
     bool allowed = (button == WULING_BTN_UNPRESS);
-    // Resume/accel allowed when cruise was previously engaged
-    allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
-    // Decel/set allowed when cruise was previously engaged
-    allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
-    // Cancel allowed when cruise was previously engaged
-    allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
+
+    if (wuling_cc_long) {
+      // CC_LONG mode: allow SET/RESUME/CANCEL for button spamming
+      allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
+      allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
+      allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
+    } else {
+      // Normal mode: only allow cancel
+      allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
+      allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
+      allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
+    }
 
     if (!allowed) {
       tx = false;
@@ -154,7 +174,12 @@ static int wuling_fwd_hook(int bus, int addr) {
 }
 
 static safety_config wuling_init(uint16_t param) {
-  UNUSED(param);
+  wuling_cc_long = GET_FLAG(param, WULING_PARAM_CC_LONG);
+
+  if (wuling_cc_long) {
+    // CC_LONG: only allow steering + button messages (no gas/brake)
+    return BUILD_SAFETY_CFG(wuling_rx_checks, WULING_CC_LONG_TX_MSGS);
+  }
   return BUILD_SAFETY_CFG(wuling_rx_checks, WULING_TX_MSGS);
 }
 

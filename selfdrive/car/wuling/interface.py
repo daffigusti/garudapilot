@@ -35,9 +35,9 @@ class CarInterface(CarInterfaceBase):
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.wuling)]
     ret.radarUnavailable = True
     ret.dashcamOnly = candidate in PREGLOBAL_CARS
-    ret.experimentalLongitudinalAvailable = True
-    ret.openpilotLongitudinalControl = experimental_long
-    ret.pcmCruise = not ret.openpilotLongitudinalControl  # False when long enabled, so planner generates actuators.accel for button spam
+    ret.experimentalLongitudinalAvailable = False
+    ret.openpilotLongitudinalControl = False
+    ret.pcmCruise = True  # stock ACC controls gas/brake, openpilot adjusts cruise speed via button spam
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.3

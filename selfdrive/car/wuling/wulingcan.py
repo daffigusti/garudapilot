@@ -186,19 +186,19 @@ def create_lkas_hud(packer, bus, lkas_hud_stock_values, lkas_active=0, steer_war
   #     "LKA_LINE_2": 1,
   #   })
 
-  # Kombinasi 3: full indicator (ACTIVE TEST)
-  if lkas_active:
-    values.update({
-      "LKA_ACTIVE": 1,
-      "LKAS_STATE": 1,
-      "LEAD_FOLLOW_1": 1,
-      "LEAD_FOLLOW_2": 1,
-      "HUD_ALERT": 1,
-      "LKA_LINE": 3,
-      "STEER_WARNING": 2,
-      "LKA_LINE_2": 0,
-      "NEW_SIGNAL_1": 1,
-    })
+  # Kombinasi 3: full indicator - ERROR
+  # if lkas_active:
+  #   values.update({
+  #     "LKA_ACTIVE": 1,
+  #     "LKAS_STATE": 1,
+  #     "LEAD_FOLLOW_1": 1,
+  #     "LEAD_FOLLOW_2": 1,
+  #     "HUD_ALERT": 1,
+  #     "LKA_LINE": 3,
+  #     "STEER_WARNING": 2,
+  #     "LKA_LINE_2": 0,
+  #     "NEW_SIGNAL_1": 1,
+  #   })
 
   # Steer warning alert options:
   if steer_warning:

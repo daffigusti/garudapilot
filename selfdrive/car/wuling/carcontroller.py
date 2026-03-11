@@ -177,10 +177,10 @@ class CarController(CarControllerBase):
     #    set_speed = int(round(hud_v_cruise * CV.MS_TO_KPH))
     #    can_sends.append(wulingcan.create_acc_hud_control(self.packer_pt, 0, CS.ascm_cc_status, CC.enabled and CS.out.cruiseState.enabled, set_speed, 0, 0))
 
-    # LkasHud - test kombinasi 5: only change STEER_WARNING
-    if self.frame % 5 == 0:
-      steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
-      can_sends.extend(wulingcan.create_lkas_hud(self.packer_pt, 0, CS.lkas_hud, CC.latActive, steer_required))
+    # LkasHud disabled - all kombinasi error, let stock camera passthrough
+    # if self.frame % 5 == 0:
+    #   steer_required = CC.hudControl.visualAlert == VisualAlert.steerRequired
+    #   can_sends.extend(wulingcan.create_lkas_hud(self.packer_pt, 0, CS.lkas_hud, CC.latActive, steer_required))
 
     # """ACC RADAR COMMAND - disabled, long controlled via button spamming"""
     # if self.CP.openpilotLongitudinalControl and self.frame % 2 == 0:

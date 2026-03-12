@@ -139,7 +139,9 @@ class CarController(CarControllerBase):
       print(f"[CC_LONG] longActive={CC.longActive} enabled={CC.enabled} cruiseEnabled={CS.out.cruiseState.enabled} "
             f"standstill={CS.out.standstill} brakePressed={CS.out.brakePressed} "
             f"cruise_was_active={self.cruise_was_active} vEgo={CS.out.vEgo:.1f} "
-            f"accel={actuators.accel:.2f} cancel={CC.cruiseControl.cancel}")
+            f"accel={actuators.accel:.2f} cancel={CC.cruiseControl.cancel} "
+            f"resume_alert={CS.resume_alert} cruiseResume={CC.cruiseControl.resume} "
+            f"accState={CS.acc_state} btnCounter={CS.buttons_counter}")
 
     # Cruise control speed adjustment via button spamming
     if CC.longActive and CS.out.cruiseState.enabled and not CC.cruiseControl.cancel:

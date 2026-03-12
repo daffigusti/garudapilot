@@ -4,7 +4,7 @@
 
 Wuling menggunakan **hybrid control**:
 - **Lateral (steering)**: Dikontrol langsung oleh openpilot via STEERING_LKA message
-- **Longitudinal (gas/brake)**: Dikontrol oleh stock ACC, openpilot mengatur cruise speed via **button spamming**
+- **Longitudinal (gas/brake)**: Dikontrol oleh stock ACC, openpilot mengatur cruise speed via **button spamming** (CC_LONG mode)
 
 ### CAN Bus Layout
 | Bus | Nama | Fungsi |
@@ -12,6 +12,16 @@ Wuling menggunakan **hybrid control**:
 | 0 | POWERTRAIN | ECM, EPS, ACC module, wheel speed |
 | 1 | OBSTACLE | Radar (tidak dipakai) |
 | 2 | CAMERA | Stock ADAS camera, LKAS, BSM |
+
+### Messages on Bus 2 (dari can_printer)
+| Address | Message | Freq |
+|---------|---------|------|
+| 0x225 (549) | STEERING_LKA | 50Hz |
+| 0x373 (883) | LkasHud | 20Hz |
+| 0x415 (1045) | Unknown | 4Hz |
+| 0x610 (1552) | Unknown | ~0Hz |
+
+**Note**: ACC messages (GasCmd, AccStatus, ASCMActiveCruiseControlStatus) **TIDAK ada** di bus 2, hanya di bus 0.
 
 ### Message Forwarding (fwd_hook)
 - Bus 0 → Bus 2: Semua message di-forward
@@ -21,13 +31,37 @@ Wuling menggunakan **hybrid control**:
 ### Key Settings
 | Parameter | Value | Catatan |
 |-----------|-------|---------|
-| `pcmCruise` | `True` | Selalu True, stock ACC kontrol gas/brake |
+| `pcmCruise` | `True` | Selalu True, stock ACC kontrol gas/brake & engagement |
 | `openpilotLongitudinalControl` | `experimental_long` | Enable via setting |
 | `radarUnavailable` | `True` | Tidak pakai radar |
+| `experimentalLongitudinalAvailable` | `True` | Bisa di-enable user |
+
+### Safety (CC_LONG Mode)
+Saat `openpilotLongitudinalControl = True`:
+- Safety flag `WULING_PARAM_CC_LONG` di-set
+- TX messages dibatasi: **hanya steering + button** (WULING_CC_LONG_TX_MSGS)
+- Tidak boleh kirim gas/brake commands (GasCmd, ASCMActiveCruiseControlStatus)
+- FrogPilot `has_cc_long` flag di-set untuk Wuling
 
 ---
 
 ## Lateral Tuning Parameters
+
+### Live Tuning via FrogPilot UI
+Parameter lateral bisa di-adjust **live** via UI tanpa restart:
+1. Settings → **Advanced Lateral Tune**
+2. Aktifkan **"Force Auto-Tune Off"** supaya slider muncul
+3. Tuning Level harus **≥ 3**
+
+| UI Toggle | Parameter | Current |
+|-----------|-----------|---------|
+| Steer Friction | FRICTION | 0.12 |
+| Lateral Acceleration | LAT_ACCEL_FACTOR | 1.70 |
+| Steer Ratio | steerRatio | 18.00 |
+| Actuator Delay | steerActuatorDelay | 0.30 |
+| Kp Factor | steerKp | default |
+
+**Note**: `STEER_MAX` dan `STEER_DELTA_UP/DOWN` tidak bisa via UI — harus edit code + flash panda.
 
 ### 1. Torque Params (`selfdrive/car/torque_data/params.toml`)
 
@@ -120,29 +154,90 @@ Wuling menggunakan **hybrid control**:
 
 ---
 
-## Longitudinal Control (Button Spamming)
+## Longitudinal Control (Button Spamming / CC_LONG)
 
-Openpilot mengontrol cruise speed stock ACC dengan mengirim button CAN message:
+### Setup
+- `openpilotLongitudinalControl = True` → planner generate `actuators.accel`
+- `pcmCruise = True` → stock ACC handle engagement & gas/brake
+- Safety `WULING_PARAM_CC_LONG` → hanya boleh kirim steering + button
+- FrogPilot `has_cc_long = True` untuk Wuling
 
-- **DECEL_SET**: Turunkan set speed
-- **RES_ACCEL**: Naikkan set speed / resume dari standstill
-- **CANCEL**: Cancel cruise
+### Button Spam Logic
+Openpilot mengontrol cruise speed stock ACC dengan mengirim button CAN message ke bus 2:
 
-### Params
-| Parameter | Value | Catatan |
-|-----------|-------|---------|
-| SEND_INTERVAL | 0.04s (25Hz) | Interval normal button spam |
-| RESUME_INTERVAL | 0.2s (5Hz) | Interval auto-resume saat standstill |
+| Button | Value | Fungsi |
+|--------|-------|--------|
+| `DECEL_SET` | 4 | Turunkan set speed |
+| `RES_ACCEL` | 8 | Naikkan set speed / resume |
+| `CANCEL` | 32 | Cancel cruise |
+| `UNPRESS` | 0 | Lepas tombol |
 
-### Auto High Beam
-Auto high beam dikontrol oleh stock camera via STEERING_LKA message. Openpilot preserve stock bytes (byte 2-6) yang berisi signal auto high beam saat override steering.
+### Target Speed Calculation
+```python
+target_speed_kph = vEgo_kph + actuators.accel_kph
+```
+Planner generate `actuators.accel`, dikonversi ke target speed, lalu dibandingkan dengan `cruiseState.speed` untuk tentukan tombol mana yang dikirim.
 
-DBC menambahkan `LKA_BYTE2` - `LKA_BYTE6` untuk capture byte yang sebelumnya undefined.
+### Intervals
+| Kondisi | Interval | Rate |
+|---------|----------|------|
+| Normal (accel/decel) | 0.04s | ~25Hz |
+| Auto-resume standstill | 0.2s | ~5Hz |
+| Auto-resume (cruise disengaged at stop) | 0.3s | ~3Hz |
 
-### LkasHud
-Currently **disabled** (stock camera handle). Perlu decode stock values yang benar sebelum bisa enable indikator steering openpilot di dashboard.
+### Stop & Go (Auto-Resume)
+Saat stock ACC disengage karena mobil stop:
+1. `cruise_was_active` flag track bahwa cruise aktif sebelum stop
+2. Selama standstill + tidak brake → kirim `RES_ACCEL` tiap 0.3s
+3. Begitu cruise re-engage → button spam normal
+4. Reset flag saat brake ditekan atau cancel
 
-Percobaan enable dengan `LKA_ACTIVE=1, LKAS_STATE=1, LKA_LINE=3` menghasilkan warning kuning di dashboard. Kemungkinan nilai `LKA_LINE=3` atau kombinasi signal salah. Perlu capture stock values saat LKAS aktif normal untuk referensi.
+---
+
+## Auto High Beam
+
+Auto high beam dikontrol oleh stock camera via **STEERING_LKA** message byte 2-6.
+
+### Fix
+- DBC menambahkan `LKA_BYTE2` - `LKA_BYTE6` untuk capture byte yang sebelumnya undefined
+- `create_steering_control` copy stock STEERING_LKA values dari camera sebagai base
+- Override hanya steer torque/request/counter/checksum
+- `SET_ME_X0` ikut stock, tidak di-hardcode
+
+---
+
+## LkasHud (Dashboard Indicator)
+
+Currently **disabled** — stock camera passthrough. Semua kombinasi yang dicoba trigger warning kuning di dashboard.
+
+### Stock Values (dari can_printer bus 2)
+```
+Active (grey/standby): c2010000ac900201
+LKA mati:              00010000ac90023f
+```
+
+| Signal | Grey (mati) | Active (standby) |
+|--------|-------------|------------------|
+| LKA_ACTIVE | 0 | 1 |
+| STEER_WARNING | 15 | 1 |
+| LKA_LINE_2 | 3 | 1 |
+| NEW_SIGNAL_1 | 1 | 1 |
+
+### Kombinasi yang Dicoba (Semua ERROR)
+| # | Signal yang diubah | Result |
+|---|-------------------|--------|
+| 1 | LKA_ACTIVE=1, STEER_WARNING=1, LKA_LINE_2=0 | Warning kuning |
+| 2 | LKA_ACTIVE=1, LKAS_STATE=1, LKA_LINE=3 | Warning kuning |
+| 3 | Full: LKA_ACTIVE=1, LKAS_STATE=1, LEAD_FOLLOW=1, HUD_ALERT=1, LKA_LINE=3, STEER_WARNING=2 | Warning kuning |
+| 5 | STEER_WARNING=2, LKA_LINE_2=1 (stock base) | Warning kuning |
+
+### Root Cause (Likely)
+Kemungkinan bukan signal values yang salah, tapi **counter/checksum di byte 4-6** (`UNKNOWN_2`, `NEW_SIGNAL_6`, `NEW_SIGNAL_7`, `NEW_SIGNAL_8`). Stock camera kirim counter yang increment, tapi openpilot kirim via packer tanpa handle counter → ECU reject message.
+
+### Next Steps
+- [ ] Decode byte 4-6 dari LkasHud (capture beberapa frame, lihat pattern counter)
+- [ ] Atau kirim raw CAN bytes (bypass packer) dengan counter yang benar
+- [ ] Atau passthrough stock + hanya modify signal tanpa re-pack (raw byte manipulation)
 
 ---
 
@@ -176,15 +271,23 @@ Percobaan enable dengan `LKA_ACTIVE=1, LKAS_STATE=1, LKA_LINE=3` menghasilkan wa
   - Override hanya steer torque/request/counter/checksum
   - Hapus hardcode `SET_ME_X0`, biarkan ikut stock
 
-### 7. pcmCruise dan button spam trigger
-- **Masalah**: `pcmCruise = False` saat long enabled menyebabkan konflik karena stock ACC masih kontrol gas/brake
-- **Fix**: `pcmCruise` selalu `True`, button spam trigger pakai `CC.enabled` bukan `CC.longActive`
+### 7. pcmCruise dan safety conflict
+- **Masalah**: `pcmCruise = False` + `openpilotLongitudinalControl = True` → safety expect gas/brake commands, tapi kita cuma kirim button spam
+- **Fix**: Tambah `WULING_PARAM_CC_LONG` safety flag (seperti GM `FLAG_GM_CC_LONG`)
+  - CC_LONG TX msgs: hanya steering + button
+  - `pcmCruise = True` (stock ACC handle engagement)
+  - `has_cc_long` flag di FrogPilot
+
+### 8. Stop & Go cruise disengage
+- **Masalah**: Stock ACC disengage saat stop → `CC.longActive = False` → button spam berhenti → tidak bisa resume
+- **Fix**: Track `cruise_was_active` state, kirim `RES_ACCEL` tiap 0.3s saat standstill untuk auto-resume
 
 ---
 
 ## TODO / Known Issues
 
-- [ ] LkasHud indikator steering: perlu decode stock values yang benar
-- [ ] Button spam rate: bisa di-improve ke dynamic rate seperti GM (kirim lebih cepat saat perbedaan speed besar)
-- [ ] `longitudinalTuning.kiV = [0.0]`: integral gain disabled, mungkin perlu tune kalau direct long control diaktifkan nanti
+- [ ] LkasHud indikator steering: kemungkinan masalah counter/checksum byte 4-6
+- [ ] Button spam rate: bisa di-improve ke dynamic rate seperti GM
+- [ ] `longitudinalTuning.kiV = [0.0]`: integral gain disabled
 - [ ] Radar command (`create_radar_command`): disabled, perlu di-enable kalau mau direct longitudinal control
+- [ ] Decode unknown messages di bus 2: 0x415 (1045), 0x610 (1552)

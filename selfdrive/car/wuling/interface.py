@@ -39,8 +39,8 @@ class CarInterface(CarInterfaceBase):
     ret.openpilotLongitudinalControl = experimental_long
     ret.pcmCruise = True  # stock ACC controls gas/brake, cruise engagement from stock PCM
 
-    if ret.openpilotLongitudinalControl:
-      ret.safetyConfigs[0].safetyParam |= Panda.FLAG_WULING_CC_LONG
+    # Always set CC_LONG - Wuling always uses button spamming for cruise control
+    ret.safetyConfigs[0].safetyParam |= Panda.FLAG_WULING_CC_LONG
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.3

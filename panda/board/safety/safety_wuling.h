@@ -136,8 +136,9 @@ static bool wuling_tx_hook(const CANPacket_t *to_send) {
     bool allowed = (button == WULING_BTN_UNPRESS);
 
     if (wuling_cc_long) {
-      // CC_LONG mode: allow SET/RESUME/CANCEL for button spamming
-      allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
+      // CC_LONG mode: allow button spamming
+      // RES_ACCEL allowed without cruise_engaged_prev for auto-resume at standstill
+      allowed |= (button == WULING_BTN_RES_ACCEL);
       allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
       allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
     } else {

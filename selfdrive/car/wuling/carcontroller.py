@@ -134,6 +134,13 @@ class CarController(CarControllerBase):
     if CC.cruiseControl.cancel or CS.out.brakePressed:
       self.cruise_was_active = False
 
+    # Debug logging (every 50 frames = 1Hz)
+    if self.frame % 50 == 0:
+      print(f"[CC_LONG] longActive={CC.longActive} enabled={CC.enabled} cruiseEnabled={CS.out.cruiseState.enabled} "
+            f"standstill={CS.out.standstill} brakePressed={CS.out.brakePressed} "
+            f"cruise_was_active={self.cruise_was_active} vEgo={CS.out.vEgo:.1f} "
+            f"accel={actuators.accel:.2f} cancel={CC.cruiseControl.cancel}")
+
     # Cruise control speed adjustment via button spamming
     if CC.longActive and CS.out.cruiseState.enabled and not CC.cruiseControl.cancel:
       can_sends.extend(wulingcan.create_wuling_cc_spam_command(self.packer_pt, self, CS, actuators))
@@ -142,6 +149,7 @@ class CarController(CarControllerBase):
       idx = (CS.buttons_counter + 1) % 4
       if (self.frame - self.last_button_frame) * DT_CTRL >= 0.3:  # 3Hz resume rate
         self.last_button_frame = self.frame
+        print(f"[CC_LONG] AUTO-RESUME: sending RES_ACCEL idx={idx}")
         can_sends.append(wulingcan.create_buttons(self.packer_pt, idx, CruiseButtons.RES_ACCEL))
     # Steering (Active: 50Hz
     steer_step = self.params.STEER_STEP

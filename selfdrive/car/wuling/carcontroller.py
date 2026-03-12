@@ -146,11 +146,17 @@ class CarController(CarControllerBase):
       can_sends.extend(wulingcan.create_wuling_cc_spam_command(self.packer_pt, self, CS, actuators))
     # Auto-resume at standstill: cruise disengaged but was active before stop
     elif self.cruise_was_active and CS.out.standstill and not CS.out.brakePressed:
-      idx = (CS.buttons_counter + 1) % 4
+      idx = int(CS.buttons_counter + 1) % 4
       if (self.frame - self.last_button_frame) * DT_CTRL >= 0.3:  # 3Hz resume rate
         self.last_button_frame = self.frame
         print(f"[CC_LONG] AUTO-RESUME: sending RES_ACCEL idx={idx}")
         can_sends.append(wulingcan.create_buttons(self.packer_pt, idx, CruiseButtons.RES_ACCEL))
+        # Also send on bus 0 directly in case fwd doesn't work at standstill
+        can_sends.append(self.packer_pt.make_can_msg("STEER_BTN", 0, {
+          "RESUME_BTN_2": 1, "ACC_BTN_1": CruiseButtons.RES_ACCEL,
+          "ACC_BTN_2": CruiseButtons.MAIN, "LKA_BTN": 0,
+          "COUNTER_1": (idx+1) % 4, "COUNTER_2": (idx+1) % 4,
+        }))
     # Steering (Active: 50Hz
     steer_step = self.params.STEER_STEP
     lat_active = CC.latActive

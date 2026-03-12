@@ -401,7 +401,7 @@ def create_wuling_cc_spam_command(packer, controller, CS, actuators):
   # Kirim pesan tombol secara kontinu (long press) selama perlu mengubah kecepatan
   if (cruiseBtn != CruiseButtons.INIT) and ((controller.frame - controller.last_button_frame) * DT_CTRL >= interval):
     controller.last_button_frame = controller.frame
-    idx = (CS.buttons_counter + 1) % 4
+    idx = int(CS.buttons_counter + 1) % 4
     return [create_buttons(packer, idx, cruiseBtn)]
   else:
     return []

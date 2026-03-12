@@ -130,27 +130,18 @@ static bool wuling_tx_hook(const CANPacket_t *to_send) {
   // Cruise button checks
   // ACC_BTN_1: start_bit 0, 6 bits, little-endian
   if (addr == WULING_CRZ_BTN) {
-    int button = GET_BYTE(to_send, 0) & 0x3FU;
-
-    // Unpress is always allowed
-    bool allowed = (button == WULING_BTN_UNPRESS);
-
-    if (wuling_cc_long) {
-      // CC_LONG mode: allow button spamming
-      // RES_ACCEL allowed without cruise_engaged_prev for auto-resume at standstill
-      allowed |= (button == WULING_BTN_RES_ACCEL);
-      allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
-      allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
-    } else {
-      // Normal mode: only allow cancel
+    if (!wuling_cc_long) {
+      // Normal mode: check button permissions
+      int button = GET_BYTE(to_send, 0) & 0x3FU;
+      bool allowed = (button == WULING_BTN_UNPRESS);
       allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
       allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
       allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
+      if (!allowed) {
+        tx = false;
+      }
     }
-
-    if (!allowed) {
-      tx = false;
-    }
+    // CC_LONG mode: all buttons allowed (button spam for cruise speed control + auto-resume)
   }
 
   return tx;

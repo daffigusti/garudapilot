@@ -150,8 +150,9 @@ class CarController(CarControllerBase):
     if (CS.resume_alert == 1 or CC.cruiseControl.resume) and self.frame % 2 == 0:
       print("Cruise button %s " % CC.cruiseControl.resume)
       print("Resume Alert %s " % CS.resume_alert)
-      # Send Resume button when planner wants car to move
-      can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.buttons_counter, CruiseButtons.RES_ACCEL)] * 25)
+      # Send Resume button on bus 0 (ACC module) and bus 2 (camera)
+      can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.buttons_counter, CruiseButtons.RES_ACCEL, bus=0)] * 25)
+      can_sends.extend([wulingcan.create_buttons(self.packer_pt, CS.buttons_counter, CruiseButtons.RES_ACCEL, bus=2)] * 25)
       self.last_button_frame = self.frame
     # Steering (Active: 50Hz
     steer_step = self.params.STEER_STEP

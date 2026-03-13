@@ -84,23 +84,23 @@ def create_acc_dashboard_command(packer, acc_engaged, idx, target_speed_kph, res
 
   return packer.make_can_msg("ASCMActiveCruiseControlStatus", 0, values)
 
-def create_buttons(packer, idx, button):
-  resume = 0;
-  acc_btn_2 = button;
-  if (button == CruiseButtons.RES_ACCEL): 
-    resume = 1;
+def create_buttons(packer, idx, button, bus=2):
+  resume = 0
+  acc_btn_2 = button
+  if button == CruiseButtons.RES_ACCEL:
+    resume = 1
     acc_btn_2 = CruiseButtons.MAIN
-  
+
   values = {
     "RESUME_BTN_2" : resume,
     "ACC_BTN_1" : button,
     "ACC_BTN_2" : acc_btn_2,
     "LKA_BTN" : 0,
-    "COUNTER_1" : (idx+1) % 0x4,
-    "COUNTER_2" : (idx+1) % 0x4,
+    "COUNTER_1" : int(idx + 1) % 0x4,
+    "COUNTER_2" : int(idx + 1) % 0x4,
   }
 
-  return packer.make_can_msg("STEER_BTN",  2, values)
+  return packer.make_can_msg("STEER_BTN", bus, values)
 
 
 

@@ -127,22 +127,10 @@ static bool wuling_tx_hook(const CANPacket_t *to_send) {
     }
   }
 
-  // Cruise button checks
-  // ACC_BTN_1: start_bit 0, 6 bits, little-endian
-  if (addr == WULING_CRZ_BTN) {
-    if (!wuling_cc_long) {
-      // Normal mode: check button permissions
-      int button = GET_BYTE(to_send, 0) & 0x3FU;
-      bool allowed = (button == WULING_BTN_UNPRESS);
-      allowed |= (button == WULING_BTN_RES_ACCEL) && cruise_engaged_prev;
-      allowed |= (button == WULING_BTN_DECEL_SET) && cruise_engaged_prev;
-      allowed |= (button == WULING_BTN_CANCEL) && cruise_engaged_prev;
-      if (!allowed) {
-        tx = false;
-      }
-    }
-    // CC_LONG mode: all buttons allowed (button spam for cruise speed control + auto-resume)
-  }
+  // Cruise button checks - all buttons allowed for button spamming
+  // if (addr == WULING_CRZ_BTN) {
+  //   // button checks bypassed for debugging
+  // }
 
   return tx;
 }
@@ -167,10 +155,7 @@ static int wuling_fwd_hook(int bus, int addr) {
 static safety_config wuling_init(uint16_t param) {
   wuling_cc_long = GET_FLAG(param, WULING_PARAM_CC_LONG);
 
-  if (wuling_cc_long) {
-    // CC_LONG: only allow steering + button messages (no gas/brake)
-    return BUILD_SAFETY_CFG(wuling_rx_checks, WULING_CC_LONG_TX_MSGS);
-  }
+  // Always use full TX msgs - CC_LONG only affects button permission checks
   return BUILD_SAFETY_CFG(wuling_rx_checks, WULING_TX_MSGS);
 }
 

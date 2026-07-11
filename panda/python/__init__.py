@@ -142,6 +142,8 @@ class Panda:
   SAFETY_FAW = 26
   SAFETY_BODY = 27
   SAFETY_HYUNDAI_CANFD = 28
+  SAFETY_WULING = 29
+  SAFETY_CHERY = 33
 
   SERIAL_DEBUG = 0
   SERIAL_ESP = 1
@@ -241,8 +243,12 @@ class Panda:
   FLAG_GM_PEDAL_LONG = 128  # TODO: This can be inferred
   FLAG_GM_GAS_INTERCEPTOR = 256
 
+  FLAG_WULING_CC_LONG = 1  # longitudinal via button spamming
+
   FLAG_FORD_LONG_CONTROL = 1
   FLAG_FORD_CANFD = 2
+
+  FLAG_CHERY_LONG_CONTROL = 1
 
   def __init__(self, serial: str | None = None, claim: bool = True, disable_checks: bool = True, can_speed_kbps: int = 500):
     self._connect_serial = serial

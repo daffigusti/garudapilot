@@ -136,6 +136,7 @@ class CarInterfaceBase(ABC):
     ret = CarInterfaceBase.get_std_params(candidate)
 
     platform = PLATFORMS[candidate]
+    print(platform.config.specs)
     ret.mass = platform.config.specs.mass
     ret.wheelbase = platform.config.specs.wheelbase
     ret.steerRatio = platform.config.specs.steerRatio

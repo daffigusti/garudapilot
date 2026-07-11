@@ -1,6 +1,5 @@
 // CAN msgs we care about
 #define CHERY_ACC_CMD 0x3A2
-#define CHERY_ACC_STATUS 0x3A5
 #define CHERY_LKAS_HUD 0x307
 #define CHERY_LKAS_CMD 0x345
 #define CHERY_ACC_SETTING 0x387
@@ -12,6 +11,7 @@
 #define CHERY_WHEEL_SENSOR 0x316 // RX for vehicle speed
 #define CHERY_ACC_DATA 0x3A5
 #define CHERY_STEER_BUTTON 0x360
+#define CHERY_STEER_ANGLE_SENSOR 0x1D3 // RX steering wheel angle (STEER_ANGLE_SENSOR)
 
 // CAN bus numbers
 #define CHERY_MAIN 0U
@@ -27,15 +27,26 @@ const uint16_t CHERY_PARAM_LONGITUDINAL = 1;
 
 bool chery_longitudinal = false;
 
+// Chery steers by ANGLE (carcontroller uses apply_std_steer_angle_limits).
+// Units are decidegrees (deg * 10) to match the LKAS CMD encoding: cmd = deg*10 - 392.
+// angle_deg_to_can = 10 (decidegrees per degree).
+// NOTE: rate lookups are set liberally above openpilot's and MUST be validated on-vehicle.
 const SteeringLimits CHERY_STEERING_LIMITS = {
-    .max_steer = 800,
-    .max_rate_up = 10,
-    .max_rate_down = 25,
-    .max_rt_delta = 300,
-    .max_rt_interval = 250000,
-    .driver_torque_factor = 1,
-    .driver_torque_allowance = 15,
-    .type = TorqueDriverLimited,
+    .angle_deg_to_can = 10,
+    .angle_rate_up_lookup = {
+        {0., 5., 25.},
+        {.8, .8, .2},
+    },
+    .angle_rate_down_lookup = {
+        {0., 5., 25.},
+        {.9, .9, .4},
+    },
+};
+
+const LongitudinalLimits CHERY_LONG_LIMITS = {
+    .max_gas = 511,
+    .min_gas = -511,
+    .inactive_gas = -24,
 };
 
 const CanMsg CHERY_TX_MSGS[] = {
@@ -62,6 +73,7 @@ RxCheck chery_rx_checks[] = {
     {.msg = {{CHERY_ENGINE, CHERY_MAIN, 48, .frequency = 100U}, {0}, {0}}},
     {.msg = {{CHERY_BRAKE, CHERY_MAIN, 8, .frequency = 50U}, {0}, {0}}},
     {.msg = {{CHERY_BRAKE_SENSOR, CHERY_MAIN, 8, .frequency = 10U}, {0}, {0}}},
+    {.msg = {{CHERY_STEER_ANGLE_SENSOR, CHERY_MAIN, 8, .frequency = 100U}, {0}, {0}}},
 };
 
 // track msgs coming from OP so that we know what CAM msgs to drop and what to forward
@@ -82,26 +94,19 @@ static void chery_rx_hook(const CANPacket_t *to_push)
       UPDATE_VEHICLE_SPEED((right_rear + left_rear) / 2.0 * 0.00828 / 3.6);
     }
 
-    // if (addr == CHERY_STEER_TORQUE) {
-    //   int torque_driver_new = GET_BYTE(to_push, 0) - 127U;
-    //   // update array of samples
-    //   update_sample(&torque_driver, torque_driver_new);
-    // }
-
-    // // enter controls on rising edge of ACC, exit controls on ACC off
-    // if (addr == CHERY_CRZ_CTRL) {
-    //   acc_main_on = GET_BIT(to_push, 17U);
-    //   bool cruise_engaged = GET_BYTE(to_push, 0) & 0x8U;
-    //   pcm_cruise_check(cruise_engaged);
-    // }
-
-    // if (addr == CHERY_ENGINE_DATA) {
-    //   gas_pressed = (GET_BYTE(to_push, 4) || (GET_BYTE(to_push, 5) & 0xF0U));
-    // }
-
     if (addr == CHERY_ENGINE)
     {
-      brake_pressed = ((GET_BYTES(to_push, 0, 27) >> 4) & 0x01) != 0U;
+      // ENGINE_DATA.BRAKE_PRESS = bit 220 (chery_canfd.dbc)
+      brake_pressed = GET_BIT(to_push, 220U) != 0U;
+    }
+
+    if (addr == CHERY_STEER_ANGLE_SENSOR)
+    {
+      // STEER_ANGLE: 7|14@0+ (0.1, -780), big-endian 14-bit unsigned
+      // raw = byte0 << 6 | byte1 >> 2 ; degrees = raw*0.1 - 780
+      // store in decidegrees to match LKAS CMD units: deg*10 = raw - 7800
+      int angle_meas_new = ((GET_BYTE(to_push, 0) << 6) | (GET_BYTE(to_push, 1) >> 2)) - 7800;
+      update_sample(&angle_meas, angle_meas_new);
     }
   }
   else if (bus == CHERY_CAM)
@@ -121,20 +126,41 @@ static void chery_rx_hook(const CANPacket_t *to_push)
     }
   }
   generic_rx_checks((addr == CHERY_LKAS_CMD) && (bus == CHERY_MAIN));
-  controls_allowed = true;
 }
 
 static bool chery_tx_hook(const CANPacket_t *to_send)
 {
   bool tx = true;
   int addr = GET_ADDR(to_send);
-  // int bus = GET_BUS(to_send);
 
-  // Check if msg is sent on the main BUS
-
+  // Steering angle command check
   if (addr == CHERY_LKAS_CMD)
   {
-    // tx = false;
+    // CMD: 6|13@0- (signed, big-endian). Packer encodes cmd = deg*10 - 392,
+    // so desired angle in decidegrees = to_signed(cmd, 13) + 392.
+    int cmd = ((GET_BYTE(to_send, 0) & 0x7F) << 6) | (GET_BYTE(to_send, 1) >> 2);
+    int desired_angle = to_signed(cmd, 13) + 392;
+
+    // LKA_ACTIVE: bit 9
+    bool steer_control_enabled = GET_BIT(to_send, 9U) != 0U;
+
+    if (steer_angle_cmd_checks(desired_angle, steer_control_enabled, CHERY_STEERING_LIMITS))
+    {
+      tx = false;
+    }
+  }
+
+  // Longitudinal gas command check (only reachable when chery_longitudinal)
+  if (addr == CHERY_ACC_CMD)
+  {
+    // CMD: 6|10@0- (signed, big-endian)
+    int desired_gas = ((GET_BYTE(to_send, 0) & 0x7F) << 3) | (GET_BYTE(to_send, 1) >> 5);
+    desired_gas = to_signed(desired_gas, 10);
+
+    if (longitudinal_gas_checks(desired_gas, CHERY_LONG_LIMITS))
+    {
+      tx = false;
+    }
   }
 
   return tx;
@@ -146,26 +172,15 @@ static int chery_fwd_hook(int bus, int addr)
 
   if (bus == CHERY_MAIN)
   {
-    bool block = (addr == 0x1110);
-    if (!block)
-    {
-      bus_fwd = CHERY_CAM;
-    }
+    // forward everything from the car to the camera
+    bus_fwd = CHERY_CAM;
   }
   else if (bus == CHERY_CAM)
   {
-
-    // bool block = (addr == CHERY_LKAS) || (addr == CHERY_ACC) || (addr == CHERY_LKAS_HUD) || (addr == CHERY_LKAS_CMD) || (addr == 0x387) || (addr == 0x3fc) || (addr == CHERY_ACC_DATA);
-    // bool block = (addr == CHERY_LKAS) || (addr == CHERY_ACC) || (addr == CHERY_LKAS_HUD) || (addr == CHERY_LKAS_HUD) || (addr == 0x345);
-    // bool block = (addr == CHERY_LKAS) || (addr == CHERY_ACC) || (addr == CHERY_LKAS_HUD) || (addr == CHERY_LKAS_HUD) || (addr == 0x345) || (addr == 0x3dc) || (addr == 0x3de) || (addr == 0x3ed) || (addr == 0x3fa) || (addr == 0x4dd);
-    // bool block = (addr == CHERY_LKAS);
-    // --|| (addr != CHERY_ACC) || (addr != CHERY_LKAS_HUD) || (addr != 0x387) || (addr != CHERY_ACC_DATA);
+    // block OP-controlled msgs from the stock camera; forward the rest to the car
     if (lkas_msg_check(addr) || (chery_longitudinal && (addr == CHERY_ACC_CMD)))
     {
       bus_fwd = -1;
-      // print("  Address: 0x");
-      // puth(addr);
-      // print("\n");
     }
     else
     {

@@ -27,6 +27,11 @@ const uint16_t CHERY_PARAM_LONGITUDINAL = 1;
 
 bool chery_longitudinal = false;
 
+// ACC_CMD.STOPPED: set by the stock ACC while holding the car at standstill.
+// ACC.ACC_ACTIVE drops to 0 in that state, so it is tracked to keep controls
+// allowed through a stop (see chery_rx_hook).
+bool chery_acc_stopped = false;
+
 // Chery steers by ANGLE (carcontroller uses apply_std_steer_angle_limits).
 // Units are decidegrees (deg * 10) to match the LKAS CMD encoding: cmd = deg*10 - 392.
 // angle_deg_to_can = 10 (decidegrees per degree).
@@ -114,14 +119,18 @@ static void chery_rx_hook(const CANPacket_t *to_push)
     if (addr == CHERY_ACC_CMD)
     {
       acc_main_on = ((GET_BYTE(to_push, 1) & 0x03) != 1U);
-      // bool stand_still = (GET_BYTE(to_push, 1) >> 2) & 0x01;
+
+      // STOPPED: 10|1@0+
+      chery_acc_stopped = GET_BIT(to_push, 10U) != 0U;
 
       gas_pressed = (GET_BYTE(to_push, 5) & 0x80U) != 0U;
     }
     if (addr == CHERY_ACC_DATA)
     {
-      // Signal: ACCStatus
-      bool cruise_engaged = GET_BIT(to_push, 20U);
+      // Signal: ACC_ACTIVE. It drops to 0 while the stock ACC holds the car at
+      // standstill, so STOPPED keeps an existing engagement alive. Requiring
+      // cruise_engaged_prev means STOPPED can never engage controls on its own.
+      bool cruise_engaged = (GET_BIT(to_push, 20U) != 0U) || (chery_acc_stopped && cruise_engaged_prev);
       pcm_cruise_check(cruise_engaged);
     }
   }
@@ -200,6 +209,7 @@ static safety_config chery_init(uint16_t param)
 #ifdef ALLOW_DEBUG
   chery_longitudinal = GET_FLAG(param, CHERY_PARAM_LONGITUDINAL);
 #endif
+  chery_acc_stopped = false;
   safety_config ret;
   ret = chery_longitudinal ? BUILD_SAFETY_CFG(chery_rx_checks, CHERY_LONG_TX_MSGS) : BUILD_SAFETY_CFG(chery_rx_checks, CHERY_TX_MSGS);
   return ret;

@@ -84,15 +84,16 @@ class CarController(CarControllerBase):
     # hud_v_cruise = hud_control.setSpeed
     experimentalMode=True
     can_sends = []
-    resume = False
     if CC.cruiseControl.cancel and (self.frame % self.params.BUTTONS_STEP) == 0:
-      # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera,self.frame, CS.buttons_stock_values, cancel=True))
+      # ponytail: cancel button is still not sent, unchanged from before. Wire it up only after
+      # the resume path is confirmed on-vehicle, since both share the same stock counter.
       print('Send Cancel')
 
     elif (CC.cruiseControl.resume) and (self.frame % self.params.BUTTONS_STEP) == 0:
-      # can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame, CS.buttons_stock_values, resume=True))
-      print('Send Resume')
-      resume = True
+      # Once the stock ACC leaves the active hold it ignores ACC_CMD gas entirely; RES+ is the
+      # only way back. Sent on the camera bus, which is where the stock button press lands.
+      can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame,
+                                                  CS.buttons_stock_values, resume=True))
     else:
       self.brake_counter = 0
 

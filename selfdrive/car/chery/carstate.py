@@ -190,6 +190,12 @@ class CarState(CarStateBase):
 
     self.needResume = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
 
+    # The stock ACC drops ACC_ACTIVE ~3s into a standstill hold and then ignores ACC_CMD gas
+    # requests until a RES+ press. Report that as cruise standstill so controlsd asks for a
+    # resume. It must clear as soon as ACC_ACTIVE returns, otherwise long_control_state_trans
+    # keeps starting_condition False and the car stays held after the button lands.
+    ret.cruiseState.standstill = self.needResume
+
     if self.lead_front > self.prev_lead_front and ret.standstill:
       self.vehicle_move = True
       print('Vehicle move')

@@ -21,6 +21,14 @@ STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
 DEADBAND = 0.2
 DIRECTION_HOLD_TIME = 1.0  # 1 second hold time
 
+# Sits above the throttle openpilot's own hold request echoes back through ENGINE_DATA.GAS,
+# which ramps in 25.6 steps to at most 205 while GAS_POS shows the pedal untouched. Real driver
+# presses in the same logs measured 486..2442.
+# ponytail: a plain threshold, because this DBC has no trustworthy pedal signal -- GAS_POS sits
+# at 2562 whether or not the pedal is down, and the camera's ACC_CMD.GAS_PRESSED bit is set in
+# under 1% of frames even under full throttle. Tune here if a light press goes unnoticed.
+GAS_PRESSED_THRESHOLD = 300
+
 class CarState(CarStateBase):
   def __init__(self, CP, FPCP):
     super().__init__(CP, FPCP)
@@ -97,8 +105,11 @@ class CarState(CarStateBase):
     self.gasPos = pt_cp.vl["ENGINE_DATA"]["GAS"]
     # ret.gas = 0 if self.gasPos >= 2559 or self.gasPos<=0 else self.gasPos
     ret.gas = self.gasPos
-    # ret.gasPressed = ret.gas > 1
-    ret.gasPressed = (cam_cp.vl["ACC_CMD"]["GAS_PRESSED"]==1) if (cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0) else (ret.gas > 1)
+    # ENGINE_DATA.GAS is throttle the powertrain is executing, not pedal travel, so during an
+    # ACC standstill hold it echoes openpilot's own request back. The old `> 1` fallback read
+    # that echo as a driver press: openpilot handed off to overriding, the request stopped, GAS
+    # fell to 0, it re-engaged, and the request rose again -- a ~0.4s lurch-and-hold loop.
+    ret.gasPressed = (cam_cp.vl["ACC_CMD"]["GAS_PRESSED"]==1) if (cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0) else (ret.gas > GAS_PRESSED_THRESHOLD)
 
     # brake pedal
     ret.brake = pt_cp.vl["BRAKE_DATA"]["BRAKE_POS"]

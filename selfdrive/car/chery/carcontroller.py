@@ -20,6 +20,12 @@ CAMERA_CANCEL_DELAY_FRAMES = 10
 # Enforce a minimum interval between steering messages to avoid a fault
 MIN_STEER_MSG_INTERVAL_MS = 15
 
+# RES+ doubles as "raise set speed". Measured on this car: held while ACC_ACTIVE is 1 it adds
+# +1..+14 kph depending on how long, while the 0.19-0.24s taps at ACC_ACTIVE 0 changed nothing.
+# So tap it like the driver does instead of holding it down.
+RESUME_TAP_FRAMES = 4   # 4 button frames at 20Hz = 200ms, in line with those taps
+RESUME_TAP_PERIOD = 14  # 700ms cycle, leaving a clear gap between taps
+
 class CarController(CarControllerBase):
   def __init__(self, dbc_name, CP, VM):
     self.CP = CP
@@ -32,6 +38,7 @@ class CarController(CarControllerBase):
     self.last_steer_frame = 0
     self.last_button_frame = 0
     self.brake_counter = 0
+    self.resume_counter = 0
     self.CAN = CanBus(CP)
 
     self.cancel_counter = 0
@@ -92,10 +99,19 @@ class CarController(CarControllerBase):
     elif (CC.cruiseControl.resume) and (self.frame % self.params.BUTTONS_STEP) == 0:
       # Once the stock ACC leaves the active hold it ignores ACC_CMD gas entirely; RES+ is the
       # only way back. Sent on the camera bus, which is where the stock button press lands.
-      can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame,
-                                                  CS.buttons_stock_values, resume=True))
+      # ACC_ACTIVE is re-checked here against the freshest CarState rather than trusting
+      # cruiseControl.resume alone: that flag is computed from the previous CarState, and a
+      # single stale frame lands in the window where RES+ means "raise set speed" instead.
+      if CS.acc_status["ACC_ACTIVE"] != 0:
+        self.resume_counter = 0
+      else:
+        if (self.resume_counter % RESUME_TAP_PERIOD) < RESUME_TAP_FRAMES:
+          can_sends.append(cherycan.create_button_msg(self.packer_pt, self.CAN.camera, self.frame,
+                                                      CS.buttons_stock_values, resume=True))
+        self.resume_counter += 1
     else:
       self.brake_counter = 0
+      self.resume_counter = 0
 
     self.steering_pressed_counter = self.steering_pressed_counter + 1 if abs(CS.out.steeringTorque) >= 50 else 0
     # Make LKA Temporary disable when driver try to override

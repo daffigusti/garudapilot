@@ -1,40 +1,36 @@
 import copy
-import time
 
 from cereal import car, custom
-from collections import deque
-import cereal.messaging as messaging
 
 from openpilot.common.conversions import Conversions as CV
-from openpilot.common.numpy_fast import mean
 from opendbc.can.can_define import CANDefine
 from opendbc.can.parser import CANParser
 from openpilot.selfdrive.car.interfaces import CarStateBase
 from openpilot.selfdrive.car.chery.values import DBC, CanBus, CarControllerParams
-from openpilot.common.params import Params
 
 GearShifter = car.CarState.GearShifter
 
-TransmissionType = car.CarParams.TransmissionType
-NetworkLocation = car.CarParams.NetworkLocation
-STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
-DEADBAND = 0.2
-DIRECTION_HOLD_TIME = 1.0  # 1 second hold time
-
 # Sits above the throttle openpilot's own hold request echoes back through ENGINE_DATA.GAS,
 # which ramps in 25.6 steps to at most 205 while GAS_POS shows the pedal untouched. Real driver
-# presses in the same logs measured 486..2442.
+# presses in the same logs measured 486..2442. Compared against the raw signal, not ret.gas.
 # ponytail: a plain threshold, because this DBC has no trustworthy pedal signal -- GAS_POS sits
 # at 2562 whether or not the pedal is down, and the camera's ACC_CMD.GAS_PRESSED bit is set in
 # under 1% of frames even under full throttle. Tune here if a light press goes unnoticed.
 GAS_PRESSED_THRESHOLD = 300
+
+# Full scale for the 0..1 range cereal wants from ret.gas / ret.brake. Taken from the DBC's
+# declared signal maxima; neither has been confirmed against a real pedal sweep, so treat the
+# absolute values as indicative. Observed peaks were GAS 2442 and BRAKE_POS 134.
+GAS_MAX = 3276.7    # ENGINE_DATA.GAS, 16 bits at 0.1
+BRAKE_POS_MAX = 511  # BRAKE_DATA.BRAKE_POS
 
 class CarState(CarStateBase):
   def __init__(self, CP, FPCP):
     super().__init__(CP, FPCP)
     self.frame = 0
     self.angleSensorLast = 0
-    self.direction= 1
+    self.angleSensor = 0
+    self.direction = 1
     can_define = CANDefine(DBC[CP.carFingerprint]["pt"])
     self.params = CarControllerParams(CP)
     self.shifter_values = can_define.dv["ENGINE_DATA"]["GEAR"]
@@ -46,14 +42,8 @@ class CarState(CarStateBase):
     self.button_states = {button.event_type: False for button in self.params.BUTTONS}
     self.lkas_enabled = False
     self.prev_lkas_enabled = False
-    self.mainEnabled = False
-    self.last_change_time = 0.0
-    self.prev_lead_front = 0
-    self.vehicle_move = False
-
 
     # Detect if servo stop responding to steering command.
-    self.cruiseState_enabled_prev = False
     self.eps_torque_timer = 0
 
   def create_button_events(self, pt_cp, buttons):
@@ -96,23 +86,19 @@ class CarState(CarStateBase):
     self.lkas_cmd = copy.copy(cam_cp.vl["LKAS_CAM_CMD_345"])
     self.acc_status = copy.copy(cam_cp.vl["ACC"])
 
-    # print(self.setting)
-
-    # steer_angle = pt_cp.vl["STEER_SENSOR"]["ANGLE"]
-    # steer_angle_fraction = pt_cp.vl["STEER_SENSOR"]["FRACTION"]
-
     # gas pedal
+    # NB: ENGINE_DATA.GAS is throttle the powertrain is executing, not pedal travel, so this is
+    # not the "user pedal only" value cereal asks for. No signal in this DBC is.
     self.gasPos = pt_cp.vl["ENGINE_DATA"]["GAS"]
-    # ret.gas = 0 if self.gasPos >= 2559 or self.gasPos<=0 else self.gasPos
-    ret.gas = self.gasPos
-    # ENGINE_DATA.GAS is throttle the powertrain is executing, not pedal travel, so during an
-    # ACC standstill hold it echoes openpilot's own request back. The old `> 1` fallback read
-    # that echo as a driver press: openpilot handed off to overriding, the request stopped, GAS
-    # fell to 0, it re-engaged, and the request rose again -- a ~0.4s lurch-and-hold loop.
-    ret.gasPressed = (cam_cp.vl["ACC_CMD"]["GAS_PRESSED"]==1) if (cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0) else (ret.gas > GAS_PRESSED_THRESHOLD)
+    ret.gas = self.gasPos / GAS_MAX
+    # During an ACC standstill hold that throttle is openpilot's own request echoed back. The
+    # old `> 1` fallback read the echo as a driver press: openpilot handed off to overriding,
+    # the request stopped, GAS fell to 0, it re-engaged, and the request rose again -- a ~0.4s
+    # lurch-and-hold loop.
+    ret.gasPressed = (cam_cp.vl["ACC_CMD"]["GAS_PRESSED"]==1) if (cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0) else (self.gasPos > GAS_PRESSED_THRESHOLD)
 
     # brake pedal
-    ret.brake = pt_cp.vl["BRAKE_DATA"]["BRAKE_POS"]
+    ret.brake = pt_cp.vl["BRAKE_DATA"]["BRAKE_POS"] / BRAKE_POS_MAX
     ret.brakePressed = pt_cp.vl["ENGINE_DATA"]["BRAKE_PRESS"] != 0
 
     # gear
@@ -124,99 +110,52 @@ class CarState(CarStateBase):
     ret.rightBlinker = pt_cp.vl["BCM_SIGNAL_1"]["SIGN_SIGNAL"] == 1
 
     # steering wheel
-    self.agleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]
+    self.angleSensor = pt_cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"]
 
-    # now = time.time()
-    # angle_change = self.agleSensor - self.angleSensorLast
-    # if (self.frame % 2) == 0:
-    #   # if now - self.last_change_time > DIRECTION_HOLD_TIME:
-    #     # Only update direction if the change is greater than the deadband
-    #   if abs(angle_change) >= DEADBAND:
-    #       if angle_change < 0:
-    #           self.direction = -1
-    #       else:
-    #           self.direction = 1
-    #   self.last_change_time = now
+    # STEER_SENSOR_2.TORQUE_DRIVER is declared signed but only ever reads positive (18k samples,
+    # 0.2..184.6), so it is a magnitude. Recover a sign from which way the angle is moving.
+    # Only steeringPressed consumes it today, and that takes abs(), so the sign is advisory.
+    if (self.frame % 10) == 0:
+      self.direction = -1 if self.angleSensor < self.angleSensorLast else 1
+      self.angleSensorLast = self.angleSensor
 
-    #   self.angleSensorLast = self.agleSensor
-
-    if  (self.frame  % 10) == 0:
-      if(self.agleSensor<self.angleSensorLast):
-        self.direction = -1
-      else:
-        self.direction = 1
-      self.angleSensorLast = self.agleSensor
-
-    # ret.steeringAngleDeg = (int(steer_angle_fraction) << 8) + steer_angle - 2048
-    ret.steeringAngleDeg = self.agleSensor
-
+    ret.steeringAngleDeg = self.angleSensor
     ret.steeringTorque = pt_cp.vl["STEER_SENSOR_2"]["TORQUE_DRIVER"] * self.direction
-
     ret.steeringTorqueEps = pt_cp.vl["STEER_ANGLE_SENSOR"]['TORQUE']
-
     ret.steeringPressed = abs(ret.steeringTorque) > self.params.STEER_THRESHOLD
-
-    self.steerTemporaryUnvailable = False
 
     self.prev_distance_button = self.distance_button
     self.distance_button = pt_cp.vl["STEER_BUTTON"]["GAP_ADJUST_UP"]
     self.prev_main_button = self.main_button
     self.main_button = pt_cp.vl["STEER_BUTTON"]["ACC"]
     self.buttons_stock_values = pt_cp.vl["STEER_BUTTON"]
-    self.lkas_status_before = self.lkas_status
     self.lkas_status = pt_cp.vl["LKAS"]['NEW_SIGNAL_1']
 
-    # if  (self.frame  % 2) == 0:
-    #   self.steerTemporaryUnvailable = CC.latActive and pt_cp.vl["LKAS"]['LKAS_CMD'] == -1 and self.lkas_status_before != 1 and self.lkas_status == 1
-    #   # ret.steerFaultTemporary = self.steerTemporaryUnvailable
-    #   if self.steerTemporaryUnvailable:
-    #     print('Steer temporary unvailable')
-
-    # Check if servo stops responding when acc is active.
-    if ret.cruiseState.enabled and ret.vEgo > self.CP.minSteerSpeed:
-       # Reset counter on entry
-      if self.cruiseState_enabled_prev != ret.cruiseState.enabled:
-        self.eps_torque_timer = 0
-      # Count up when no torque from servo detected.
-      if CC.latActive and pt_cp.vl["LKAS"]['LKAS_CMD'] == -1 and self.lkas_status == 1:
-        self.eps_torque_timer += 1
-      else:
-        self.eps_torque_timer = 0
-      # Set fault if above threshold
-      ret.steerFaultTemporary = self.eps_torque_timer >= CarControllerParams.STEER_TIMEOUT
-
-    self.cruiseState_enabled_prev = ret.cruiseState.enabled
-
-    if self.prev_main_button == 0 and self.main_button != 0:
-      self.mainEnabled = not self.mainEnabled
-      print('Main enabled', self.mainEnabled)
     # cruise state
     ret.cruiseState.available = cam_cp.vl["ACC_CMD"]["ACC_STATE"] != 1 or cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0
-    # ret.cruiseState.available =  True
-
-    # ret.cruiseState.available = self.mainEnabled or cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0
     ret.cruiseState.enabled = cam_cp.vl["ACC"]["ACC_ACTIVE"] != 0 or cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
-    # ret.cruiseState.enabled= self.mainEnabled
-    self.lead_front  = (cam_cp.vl["LEAD_FRONT"]["LEAD_DISTANCE"]) if (cam_cp.vl["LEAD_FRONT"]["VALID_SIGNAL"] == 1)  else 0
-
-    self.needResume = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
 
     # The stock ACC drops ACC_ACTIVE ~3s into a standstill hold and then ignores ACC_CMD gas
     # requests until a RES+ press. Report that as cruise standstill so controlsd asks for a
     # resume. It must clear as soon as ACC_ACTIVE returns, otherwise long_control_state_trans
     # keeps starting_condition False and the car stays held after the button lands.
-    ret.cruiseState.standstill = self.needResume
+    ret.cruiseState.standstill = cam_cp.vl["ACC"]["ACC_ACTIVE"] == 0 and cam_cp.vl["ACC_CMD"]["STOPPED"] == 1
 
-    if self.lead_front > self.prev_lead_front and ret.standstill:
-      self.vehicle_move = True
-      print('Vehicle move')
+    # CC_SPEED is kph on the wire; cereal wants m/s
+    ret.cruiseState.speed = cam_cp.vl["SETTING"]["CC_SPEED"] * CV.KPH_TO_MS
+
+    # Check if the servo stops responding while the ACC is active. Must come after
+    # cruiseState.enabled is assigned above -- reading it earlier always saw the message
+    # default of False, which silently disabled this check entirely.
+    if ret.cruiseState.enabled and ret.vEgo > self.CP.minSteerSpeed:
+      if CC.latActive and pt_cp.vl["LKAS"]['LKAS_CMD'] == -1 and self.lkas_status == 1:
+        self.eps_torque_timer += 1
+      else:
+        self.eps_torque_timer = 0
+      ret.steerFaultTemporary = self.eps_torque_timer >= CarControllerParams.STEER_TIMEOUT
     else:
-      self.vehicle_move = False
+      self.eps_torque_timer = 0
 
-    self.prev_lead_front = self.lead_front
-
-    ret.cruiseState.speed = cam_cp.vl["SETTING"]["CC_SPEED"]
-    # ret.cruiseState.enabled = cam_cp.vl["LKAS_STATE"]["STATE"] != 0
     self.cruise_decreased_previously = self.cruise_decreased
     self.cruise_decreased = pt_cp.vl["STEER_BUTTON"]["RES_MINUS"]
     self.cruise_increased_previously = self.cruise_increased
@@ -225,9 +164,7 @@ class CarState(CarStateBase):
     # FrogPilot CarState functions
     self.lkas_previously_enabled = self.lkas_enabled
     self.lkas_enabled = cam_cp.vl["LKAS_STATE"]["LKA_ACTIVE"] != 0
-    self.lkas_active =  pt_cp.vl["LKAS"]['LKAS_CMD']
-
-    # print('Lkas Command: ', self.lkas_active)
+    self.lkas_active = pt_cp.vl["LKAS"]['LKAS_CMD']
 
     # blindspot sensors
     if self.CP.enableBsm:
@@ -235,24 +172,15 @@ class CarState(CarStateBase):
       ret.rightBlindspot = pt_cp.vl["BSM_RIGHT"]["BSM_RIGHT_DETECT"] != 0
 
     # lock info
+    # TODO: neither signal is mapped in this DBC yet, so openpilot cannot warn on an open door
+    # or an unbuckled belt
     ret.doorOpen = False
     ret.seatbeltUnlatched = False
 
     fp_ret.brakeLights = bool(ret.brakePressed)
 
-    # print('Steer Fraction: ', steer_angle_fraction)
-    # print('retsteeringTorque: ', ret.steeringTorque)
-    # print('brakePressed: ', ret.brakePressed)
-    # print('agle sensor 1: ', ret.steeringAngleDeg)
-    # print('agle sensor 2: ', self.agleSensor)
-    # print('Steer Sensor Torque: ', ret.steeringTorque)
-    # print('Lkas Command: ', self.lkas)
-    # print('Lkas State: ', self.lkas_state)
-    # print('Lkas steerTemporaryUnvailable: ', self.steerTemporaryUnvailable)
-    # print('Engine: ', pt_cp.vl["ENGINE_DATA"])
-
     self.frame += 1
-    return ret,fp_ret
+    return ret, fp_ret
 
   @staticmethod
   def get_cam_can_parser(CP, FPCP):
@@ -262,7 +190,6 @@ class CarState(CarStateBase):
       ("LKAS_CAM_CMD_345", 50),
       ("LKAS_STATE", 20),
       ("SETTING", 20),
-      ("LEAD_FRONT", 20),
     ]
 
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, CanBus(CP).camera)
@@ -272,21 +199,15 @@ class CarState(CarStateBase):
 
     messages = [
        ("STEER_ANGLE_SENSOR", 100),
-       ("STEER_SENSOR", 100),
        ("WHEEL_SPEED_FRNT", 50),
        ("WHEEL_SPEED_REAR", 50),
        ("BCM_SIGNAL_1", 50),
-       ("BCM_SIGNAL_2", 50),
        ("BRAKE_DATA", 50),
        ("LKAS", 100),
        ("ENGINE_DATA", 100),
        ("STEER_SENSOR_2", 59),
        ("STEER_BUTTON", 20),
-
     ]
-    print('CanBus Main: ', CanBus(CP).main)
-    print('CanBus Cam: ', CanBus(CP).camera)
-    print('Enable BSM: ', CP.enableBsm)
 
     if CP.enableBsm:
       messages += [

@@ -35,16 +35,22 @@ bool chery_acc_stopped = false;
 // Chery steers by ANGLE (carcontroller uses apply_std_steer_angle_limits).
 // Units are decidegrees (deg * 10) to match the LKAS CMD encoding: cmd = deg*10 - 392.
 // angle_deg_to_can = 10 (decidegrees per degree).
-// NOTE: rate lookups are set liberally above openpilot's and MUST be validated on-vehicle.
+// Held ~1.7x above the car port's ANGLE_RATE_LIMIT_UP/DOWN in values.py at every speed. The
+// port is what shapes the motion; this only has to stay clear of it, since anything at or below
+// it would start dropping legitimate LKAS frames and surface as a steer fault. Breakpoints
+// differ from the port's because lookup_t is fixed at three points -- {0, 10, 25} tracks the
+// port's four-point curve more closely here than {0, 5, 25} would.
+// Only the low-speed end was opened up; 25 m/s is unchanged. Raise both files together or neither.
+// NOTE: rate lookups MUST be validated on-vehicle.
 const SteeringLimits CHERY_STEERING_LIMITS = {
     .angle_deg_to_can = 10,
     .angle_rate_up_lookup = {
-        {0., 5., 25.},
-        {.8, .8, .2},
+        {0., 10., 25.},
+        {2.0, .55, .2},
     },
     .angle_rate_down_lookup = {
-        {0., 5., 25.},
-        {.9, .9, .4},
+        {0., 10., 25.},
+        {2.4, .7, .4},
     },
 };
 

@@ -58,8 +58,21 @@ class CarControllerParams:
   # ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.3, 0.085])
   # ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.325, 0.09])
 
-  ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.4, 0.1])
-  ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[5, 25], angle_v=[0.455, 0.2])
+  # deg per command, and commands go out at 100Hz/STEER_STEP = 50Hz, so multiply by 50 for deg/s.
+  # Sized against what the driver's own steering achieves, measured per 100ms window over 39min
+  # of rlog (p95 by speed band): 142 deg/s below 5 m/s, 37 at 5-10, 13 at 10-25.
+  # The old [0.4, 0.1] over [5, 25] allowed 20 deg/s below 5 m/s -- 7x under the driver -- which
+  # left the command trailing the request by ~50deg for up to 4s through a tight turn. Above
+  # 10 m/s it was already in line with the driver, so the top of the range is left alone and
+  # only the low-speed end opens up.
+  # The EPS is not the constraint: while openpilot steers, |commanded - measured| runs p50 0.10deg
+  # and p95 0.70deg, so it tracks whatever it is given.
+  # Four breakpoints, because three force a straight ramp from the low-speed anchor down to
+  # 25 m/s that passes way over the driver's p95 through the middle of the range. The knee at
+  # 10 m/s puts the curve back on the old values from there up.
+  # panda's CHERY_STEERING_LIMITS must stay liberally above these or it drops the LKAS frame.
+  ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[0, 5, 10, 25], angle_v=[1.2, 0.7, 0.32, 0.1])    # 60, 35, 16, 5 deg/s
+  ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[0, 5, 10, 25], angle_v=[1.4, 0.85, 0.4, 0.2])  # 70, 42, 20, 10 deg/s
 
   ACCEL_MAX = 2.0               # m/s^2 max acceleration
   ACCEL_MAX_PLUS = 4.0          # m/s^2 max acceleration
